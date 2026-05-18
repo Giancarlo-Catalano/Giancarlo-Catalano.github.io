@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas Interactive Code Tool</title>
+    <style>
+        /* Encoder UI Styles - Clean, system-font based, and distraction-free */
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #fafafa;
+        }
+        #encoder-ui {
+            max-width: 900px;
+            margin: 3rem auto;
+            padding: 2rem;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            display: none; /* Hidden by default until we confirm there is no URL hash */
+        }
+        h2 { margin-top: 0; color: #111; }
+        textarea {
+            width: 100%;
+            height: 350px;
+            font-family: ui-monospace, monospace;
+            padding: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            resize: vertical;
+            box-sizing: border-box;
+            font-size: 14px;
+            background-color: #fcfcfc;
+        }
+        textarea:focus { outline: none; border-color: #0055a4; }
+        button {
+            background: #0055a4;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 6px;
+            margin-top: 1rem;
+            transition: background 0.2s;
+        }
+        button:hover { background: #004482; }
+        .output-section {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid #eee;
+        }
+        .output-box {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1.5rem;
+            word-break: break-all;
+            font-family: ui-monospace, monospace;
+            font-size: 13px;
+        }
+        .error-msg {
+            padding: 2rem;
+            font-family: sans-serif;
+            color: #d32f2f;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- THE ENCODER INTERFACE -->
+    <div id="encoder-ui">
+        <h2>Canvas Code Generator</h2>
+        <p>Paste your standalone HTML, CSS, and JavaScript code below. This page will encode it into a base64 URL and generate the exact iframe snippet needed for the Canvas Rich Content Editor.</p>
+
+        <textarea id="codeInput" placeholder="<!DOCTYPE html>
+<html>
+<head>
+    <style> body { font-family: sans-serif; } </style>
+</head>
+<body>
+    <h1>Hello World</h1>
+    <script> console.log('Ready'); </script>
+</body>
+</html>"></textarea>
+
+        <button onclick="generateLinks()">Encode & Generate Links</button>
+
+        <div id="results" class="output-section" style="display: none;">
+            <h3>1. Embedded Iframe Code (Paste into Canvas HTML Editor)</h3>
+            <p style="font-size: 0.9rem; color: #666;">This uses an aspect-ratio of 16/9 as requested, scaling dynamically to 90% width.</p>
+            <div class="output-box" id="iframeOutput"></div>
+
+            <h3>2. Direct URL</h3>
+            <div class="output-box" id="urlOutput"></div>
+        </div>
+    </div>
+
+    <!-- THE LOGIC -->
+    <script>
+        // 1. Check the URL for an encoded payload
+        const hashPayload = window.location.hash.substring(1);
+
+        if (hashPayload) {
+            // DECODER MODE: Payload exists, attempt to render it
+            try {
+                // decodeURIComponent handles spaces and special characters safely before atob decoding
+                const decodedHTML = decodeURIComponent(atob(hashPayload));
+
+                // document.open() clears the current DOM completely
+                document.open();
+                document.write(decodedHTML);
+                document.close();
+            } catch (error) {
+                console.error("Decoding error:", error);
+                document.body.innerHTML = `
+                    <div class="error-msg">
+                        <h2>Error Decoding Content</h2>
+                        <p>The URL payload could not be parsed. Ensure the code is properly encoded valid Base64.</p>
+                    </div>`;
+            }
+        } else {
+            // ENCODER MODE: No payload, show the user interface
+            document.getElementById('encoder-ui').style.display = 'block';
+        }
+
+        // 2. Generator Function
+        function generateLinks() {
+            const rawCode = document.getElementById('codeInput').value;
+
+            if (!rawCode.trim()) {
+                alert("Please enter some HTML code first.");
+                return;
+            }
+
+            try {
+                // btoa handles ASCII. encodeURIComponent ensures UTF-8 characters don't break the encoder.
+                const encodedPayload = btoa(encodeURIComponent(rawCode));
+
+                // Construct the target URL
+                const baseUrl = "https://giancarlo-catalano.github.io/interactivity_on_canvas.html";
+                const fullUrl = `${baseUrl}#${encodedPayload}`;
+
+                // Construct the Canvas iframe.
+                // Using aspect-ratio: 16/9 natively handles the width * 9/16 requirement.
+                // A fallback height is included in case the Canvas sanitizer strips the aspect-ratio CSS.
+                const iframeCode = `<iframe
+    src="${fullUrl}"
+    width="90%"
+    height="600"
+    style="aspect-ratio: 16/9; border: 1px solid #ccc; border-radius: 4px;"
+    allowfullscreen>
+</iframe>`;
+
+                // Display outputs
+                document.getElementById('urlOutput').innerText = fullUrl;
+                document.getElementById('iframeOutput').innerText = iframeCode;
+                document.getElementById('results').style.display = 'block';
+
+                // Scroll to results
+                document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+
+            } catch (error) {
+                alert("Encoding failed. Check console for details.");
+                console.error("Encoding error:", error);
+            }
+        }
+    </script>
+</body>
+</html>

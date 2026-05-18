@@ -46,27 +46,39 @@
         }
 
         /* --- Individual Tool Cards --- */
-        .tool-card {
-            width: 31%; /* Roughly 30%, accounting for the gap */
-            height: 6em;
-            box-shadow: 4px 6px 12px rgba(0, 0, 0, 0.4);
-            text-decoration: none;
-            color: #111; /* Dark text ensures readability on pastel backgrounds */
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            padding: 0 1.5em;
-            box-sizing: border-box;
-            margin-bottom: 3%;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            /* overflow: hidden ensures text doesn't spill out if it gets too long */
-            overflow: hidden;
-        }
+.tool-card {
+    width: 31%;
+    min-height: 6em; /* 1. CHANGED: Allows the card to grow taller than 6em if needed */
+    box-shadow: 4px 6px 12px rgba(0, 0, 0, 0.4);
+    text-decoration: none;
+    color: #111;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 1.5em; /* 2. CHANGED: Added vertical padding so wrapped text doesn't touch the top/bottom edges */
+    box-sizing: border-box;
+    margin-bottom: 3%;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    /* 3. REMOVED: overflow: hidden; */
+}
 
-        .tool-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 6px 8px 16px rgba(0, 0, 0, 0.5);
-        }
+.tool-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 6px 8px 16px rgba(0, 0, 0, 0.5);
+}
+
+.tool-title {
+    font-weight: bold;
+    font-size: 1.1em;
+    margin-bottom: 0.3em;
+    /* 4. REMOVED: white-space: nowrap, overflow: hidden, text-overflow: ellipsis */
+}
+
+.tool-desc {
+    font-size: 0.9em;
+    opacity: 0.85;
+    /* 5. REMOVED: white-space: nowrap, overflow: hidden, text-overflow: ellipsis */
+}
 
         .tool-title {
             font-weight: bold;
@@ -128,6 +140,11 @@
                 "name": "LaTeX Table Generator",
                 "description": "Converts copied tables into LaTeX",
                 "link": "latex_table_generator.html"
+            },
+            {
+                "name": "Interactivity on Canvas LMS",
+                "description": "Allowa interactive content on Canvas LSM",
+                "link": "interactivity_on_canvas.html"
             }
         ];
 
