@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student marathon</title>
+<style>
+  /* Base page styling */
+  body {
+    background-color: #121212; /* Black background */
+    color: #ffffff;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-sizing: border-box;
+  }
+
+  *, *:before, *:after {
+    box-sizing: inherit;
+  }
+
+  h1 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+
+  /* Container spanning the full width */
+  #app-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  button.primary-btn {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    font-size: 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    transition: background-color 0.2s;
+    align-self: center; /* Keeps the add button centered even when container is wide */
+  }
+
+  button.primary-btn:hover {
+    background-color: #45a049;
+  }
+
+  #queue {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+  }
+
+  /* Queue Item Base Styles */
+  .queue-item {
+    color: #222222; /* Slightly darker text for even better contrast against faint backgrounds */
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+    width: 100%;
+  }
+
+  /* Top student indicator: Dashed, pulsing border */
+  .queue-item:first-child::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border: 3px dashed #333333;
+    border-radius: 10px;
+    pointer-events: none;
+    animation: pulseBorder 1.5s infinite alternate;
+  }
+
+  @keyframes pulseBorder {
+    0% { border-color: rgba(0, 0, 0, 0.15); }
+    100% { border-color: rgba(0, 0, 0, 0.7); }
+  }
+
+  /* Visual feedback when dragging an item */
+  .queue-item.dragging {
+    opacity: 0.5;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.6);
+  }
+
+  /* Drag handle on the left */
+  .handle {
+    width: 40px;
+    background-color: rgba(0, 0, 0, 0.06); /* Slightly fainter handle background */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    font-size: 20px;
+    color: #666;
+    user-select: none;
+    flex-shrink: 0; /* Prevents handle from squishing on very narrow screens */
+  }
+
+  .handle:active {
+    cursor: grabbing;
+  }
+
+  /* Container for text and buttons */
+  .content {
+    flex-grow: 1;
+    padding: 12px 15px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Editable text areas */
+  .editable {
+    outline: none;
+    padding: 4px;
+    border-radius: 4px;
+    border: 1px dashed transparent;
+    transition: border-color 0.2s;
+    min-height: 1.2em;
+  }
+
+  .editable:focus {
+    border-color: rgba(0, 0, 0, 0.2);
+    background-color: rgba(255, 255, 255, 0.4);
+  }
+
+  /* CSS trick for placeholders on contenteditable elements */
+  [contenteditable][data-placeholder]:empty::before {
+    content: attr(data-placeholder);
+    color: rgba(0, 0, 0, 0.4);
+    font-style: italic;
+    cursor: text;
+  }
+
+  .name {
+    font-weight: bold;
+    font-size: 1.1em;
+  }
+
+  .progress {
+    font-size: 0.95em;
+    color: #444;
+  }
+
+  /* Separator */
+  hr {
+    border: 0;
+    border-top: 1px solid rgba(0,0,0,0.1);
+    width: 100%;
+    margin: 8px 0;
+  }
+
+  /* Action buttons container */
+  .item-actions {
+    display: none;
+    margin-top: 10px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  /* Reveal buttons when item is clicked/active */
+  .queue-item.active .item-actions {
+    display: flex;
+  }
+
+  .action-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.85em;
+    font-weight: bold;
+    color: white;
+  }
+
+  .btn-bottom {
+    background-color: #2196F3;
+  }
+  .btn-bottom:hover { background-color: #1e88e5; }
+
+  .btn-remove {
+    background-color: #F44336;
+  }
+  .btn-remove:hover { background-color: #e53935; }
+
+</style>
+</head>
+<body>
+
+  <h1>Student marathon</h1>
+
+  <div id="app-container">
+    <button id="add-btn" class="primary-btn">+ Add New Student</button>
+    <div id="queue">
+      </div>
+  </div>
+
+  <script>
+    const queueContainer = document.getElementById('queue');
+    const addBtn = document.getElementById('add-btn');
+
+    // 20 faint, low-saturation colors for better text contrast
+    const pastelPalette = [
+      '#F4ECEE', '#F2EDE9', '#EEF2EC', '#EAF1F4', '#EFEAF2',
+      '#F4EAE8', '#F4F2E6', '#E9F4EE', '#E8EFF4', '#F4E8F0',
+      '#F4E6E6', '#F4EFE6', '#E6F4E6', '#E6F0F4', '#EBE6F4',
+      '#F4E6EC', '#F4EAE6', '#EBF4E6', '#E6EBF4', '#F4E6EF'
+    ];
+    let colorIndex = 0;
+
+    // Generates the HTML structure for a new student entry
+    function createQueueItem(nameText = "") {
+      const item = document.createElement('div');
+      item.className = 'queue-item';
+
+      // Assign the next faint color from the palette, and loop if we pass 20
+      item.style.backgroundColor = pastelPalette[colorIndex % pastelPalette.length];
+      colorIndex++;
+
+      item.innerHTML = `
+        <div class="handle" title="Drag to move">⋮⋮</div>
+        <div class="content">
+          <div class="name editable" contenteditable="true" data-placeholder="Student Name">${nameText}</div>
+          <hr>
+          <div class="progress editable" contenteditable="true" data-placeholder="type here the current progress"></div>
+          <div class="item-actions">
+            <button class="action-btn btn-bottom">Send to Bottom</button>
+            <button class="action-btn btn-remove">Remove</button>
+          </div>
+        </div>
+      `;
+
+      setupItemEvents(item);
+      return item;
+    }
+
+    // Attaches all necessary interactive events to a newly created item
+    function setupItemEvents(item) {
+      const handle = item.querySelector('.handle');
+      const btnBottom = item.querySelector('.btn-bottom');
+      const btnRemove = item.querySelector('.btn-remove');
+      const editables = item.querySelectorAll('.editable');
+
+      // 1. Reveal buttons when the item is clicked
+      item.addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON') return;
+
+        // Hide buttons on all other items first
+        document.querySelectorAll('.queue-item').forEach(el => {
+          if (el !== item) el.classList.remove('active');
+        });
+
+        item.classList.add('active');
+      });
+
+      // 2. Fix for contenteditable adding <br> tags which breaks the :empty pseudo-class
+      editables.forEach(div => {
+        div.addEventListener('blur', function() {
+            if (this.innerHTML === '<br>') {
+                this.innerHTML = '';
+            }
+        });
+      });
+
+      // 3. "Send to Bottom" button logic
+      btnBottom.addEventListener('click', (e) => {
+        e.stopPropagation();
+        queueContainer.appendChild(item);
+        item.classList.remove('active');
+      });
+
+      // 4. "Remove" button logic
+      btnRemove.addEventListener('click', (e) => {
+        e.stopPropagation();
+        item.remove();
+      });
+
+      // 5. Drag & Drop Logic
+      handle.addEventListener('mousedown', () => item.setAttribute('draggable', 'true'));
+      handle.addEventListener('mouseup', () => item.removeAttribute('draggable'));
+      handle.addEventListener('mouseleave', () => item.removeAttribute('draggable'));
+
+      item.addEventListener('dragstart', (e) => {
+        item.classList.add('dragging');
+        e.dataTransfer.setData('text/plain', '');
+      });
+
+      item.addEventListener('dragend', () => {
+        item.classList.remove('dragging');
+        item.removeAttribute('draggable');
+      });
+    }
+
+    // Handles the repositioning of items while dragging over the container
+    queueContainer.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      const draggingItem = document.querySelector('.dragging');
+      if (!draggingItem) return;
+
+      const afterElement = getDragAfterElement(queueContainer, e.clientY);
+      if (afterElement == null) {
+        queueContainer.appendChild(draggingItem);
+      } else {
+        queueContainer.insertBefore(draggingItem, afterElement);
+      }
+    });
+
+    // Calculates which element the mouse is currently hovering above
+    function getDragAfterElement(container, y) {
+      const draggableElements = [...container.querySelectorAll('.queue-item:not(.dragging)')];
+
+      return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+          return { offset: offset, element: child };
+        } else {
+          return closest;
+        }
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    // Hide item buttons if the user clicks anywhere else on the empty background
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.queue-item') && !e.target.closest('#add-btn')) {
+        document.querySelectorAll('.queue-item').forEach(el => el.classList.remove('active'));
+      }
+    });
+
+    // "Add New Student" button logic
+    addBtn.addEventListener('click', () => {
+      const newItem = createQueueItem();
+      queueContainer.appendChild(newItem);
+    });
+
+    // Initialize the page with one empty entry
+    queueContainer.appendChild(createQueueItem());
+
+    // ---------------------------------------------------------
+    // NEW: Warn before leaving the page
+    // ---------------------------------------------------------
+    window.addEventListener('beforeunload', (event) => {
+      // Cancels the event as stated by the standard.
+      event.preventDefault();
+      // Chrome requires returnValue to be set.
+      event.returnValue = '';
+    });
+
+  </script>
+</body>
+</html>

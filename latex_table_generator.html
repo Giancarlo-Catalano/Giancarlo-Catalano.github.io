@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spreadsheet to LaTeX (v2)</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --text: #1e293b;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            line-height: 1.5;
+        }
+
+        h1 { margin-bottom: 1.5rem; }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--surface);
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid var(--border);
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-family: monospace;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+
+        textarea:focus, input[type="text"]:focus, input[type="number"]:focus, select:focus {
+            outline: 2px solid var(--primary);
+            border-color: transparent;
+        }
+
+        input[type="text"], select {
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            font-family: monospace;
+            margin-bottom: 1rem;
+        }
+
+        input[type="number"] {
+            padding: 0.35rem 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-family: inherit;
+            width: 60px;
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        button:hover { opacity: 0.9; }
+
+        pre {
+            background: #f1f5f9;
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            margin: 0;
+            border: 1px solid var(--border);
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .control-group label { margin: 0; font-weight: normal; }
+
+        #copy-msg {
+            color: green;
+            font-size: 0.9rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Spreadsheet to LaTeX Converter v2</h1>
+
+    <div class="container">
+
+        <div class="card">
+            <label for="input-data">1. Paste Spreadsheet Data Here:</label>
+            <textarea id="input-data" placeholder="Paste directly from Google Sheets or Excel..."></textarea>
+
+            <hr style="border: 0; border-top: 1px solid var(--border); margin: 1.5rem 0;">
+
+            <div class="controls-row">
+                <div class="control-group">
+                    <label for="align-select" style="font-weight: 600;">Alignment:</label>
+                    <select id="align-select">
+                        <option value="c">Center</option>
+                        <option value="l">Left</option>
+                        <option value="r">Right</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="wrap-select" style="font-weight: 600;">Text Wrapping:</label>
+                    <select id="wrap-select">
+                        <option value="nowrap">No Wrap (Standard)</option>
+                        <option value="wrap">Auto-Wrap (\textwidth)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="controls-row">
+                <div class="control-group">
+                    <label for="header-rows" style="font-weight: 600;">Header Rows:</label>
+                    <input type="number" id="header-rows" value="1" min="0">
+                </div>
+                <div class="control-group">
+                    <input type="checkbox" id="add-caption" checked>
+                    <label for="add-caption">Add Caption</label>
+                </div>
+                <div class="control-group">
+                    <input type="checkbox" id="add-label" checked>
+                    <label for="add-label">Add Label</label>
+                </div>
+            </div>
+
+            <label for="escape-list" style="margin-top: 0.5rem;">Characters to escape automatically:</label>
+            <input type="text" id="escape-list" value="&%$#_{}~^\" placeholder="Enter characters to escape, e.g. %$#">
+
+        </div>
+
+        <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                <label for="output-latex" style="margin:0;">2. LaTeX Result:</label>
+                <div>
+                    <span id="copy-msg">Copied!</span>
+                    <button onclick="copyToClipboard()">Copy LaTeX</button>
+                </div>
+            </div>
+            <pre id="output-latex">% Paste data above to generate table...</pre>
+        </div>
+
+    </div>
+
+    <script>
+        const inputArea = document.getElementById('input-data');
+        const outputArea = document.getElementById('output-latex');
+        const headerRowsInput = document.getElementById('header-rows');
+        const addCaptionCheckbox = document.getElementById('add-caption');
+        const addLabelCheckbox = document.getElementById('add-label');
+        const escapeListInput = document.getElementById('escape-list');
+        const alignSelect = document.getElementById('align-select');
+        const wrapSelect = document.getElementById('wrap-select');
+
+        // Update on any input or setting change
+        const inputs = [inputArea, headerRowsInput, addCaptionCheckbox, addLabelCheckbox, escapeListInput, alignSelect, wrapSelect];
+        inputs.forEach(el => el.addEventListener('input', generateLatex));
+        inputs.forEach(el => el.addEventListener('change', generateLatex));
+
+        function generateLatex() {
+            const rawData = inputArea.value;
+            if (!rawData.trim()) {
+                outputArea.textContent = "% Paste data above to generate table...";
+                return;
+            }
+
+            // 1. Parse Data
+            let rows = rawData.split(/\r\n|\n|\r/).filter(row => row.trim() !== "");
+            if (rows.length === 0) return;
+            const colCount = rows[0].split('\t').length;
+
+            // 2. Determine Environment and Column Formatting
+            const alignVal = alignSelect.value;
+            const isWrapping = wrapSelect.value === 'wrap';
+
+            let envName = isWrapping ? "tabularx" : "tabular";
+            let envArgs = isWrapping ? "{\\textwidth}" : "";
+            let colDef = "";
+
+            if (isWrapping) {
+                if (alignVal === 'c') colDef = ">{\\centering\\arraybackslash}X";
+                else if (alignVal === 'l') colDef = ">{\\raggedright\\arraybackslash}X";
+                else if (alignVal === 'r') colDef = ">{\\raggedleft\\arraybackslash}X";
+            } else {
+                colDef = alignVal; // simply 'c', 'l', or 'r'
+            }
+
+            const tableCols = Array(colCount).fill(colDef).join("");
+
+            // 3. Start Building LaTeX
+            let latex = "\\begin{table}[h]\n";
+            latex += "    \\centering\n";
+
+            if (addCaptionCheckbox.checked) {
+                latex += "    \\caption{Placeholder}\n";
+            }
+            if (addLabelCheckbox.checked) {
+                latex += "    \\label{tab:placeholder}\n";
+            }
+
+            latex += `    \\begin{${envName}}${envArgs}{${tableCols}}\n`;
+            latex += "        \\toprule\n";
+
+            // 4. Process Rows
+            const charsToEscape = escapeListInput.value;
+            const headerCount = parseInt(headerRowsInput.value) || 0;
+
+            rows.forEach((row, index) => {
+                let cells = row.split('\t');
+                while (cells.length < colCount) cells.push("");
+
+                cells = cells.map(cell => {
+                    return escapeCustom(cell.trim(), charsToEscape);
+                });
+
+                latex += "        " + cells.join(" & ") + " \\\\\n";
+
+                if (headerCount > 0 && index === headerCount - 1) {
+                    latex += "        \\midrule\n";
+                }
+            });
+
+            // 5. Footer
+            latex += "        \\bottomrule\n";
+            latex += `    \\end{${envName}}\n`;
+            latex += "\\end{table}";
+
+            outputArea.textContent = latex;
+        }
+
+        function escapeCustom(text, charList) {
+            let result = "";
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                if (charList.includes(char)) {
+                    if (char === '\\') result += '\\textbackslash{}';
+                    else if (char === '~') result += '\\textasciitilde{}';
+                    else if (char === '^') result += '\\textasciicircum{}';
+                    else result += '\\' + char;
+                } else {
+                    result += char;
+                }
+            }
+            return result;
+        }
+
+        function copyToClipboard() {
+            const text = outputArea.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const msg = document.getElementById('copy-msg');
+                msg.style.opacity = '1';
+                setTimeout(() => { msg.style.opacity = '0'; }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gian's Personal Page</title>
+    <style>
+        /* --- Typography and Layout --- */
+        body {
+            /* Using Rockwell as requested, with fallbacks just in case */
+            font-family: "Rockwell", "Rockwell Nova", "Roboto Slab", serif;
+            background-color: #ffffff; /* Dark, natural green */
+            color: #fdfdfd; /* Off-white text for contrast */
+            line-height: 1.6;
+            margin: 0;
+            padding: 2em;
+            display: flex;
+            justify-content: center;
+        }
+
+        .content-wrapper {
+            max-width: 900px;
+            width: 100%;
+        }
+
+        h1 {
+            font-size: 1.8em;
+            margin-bottom: 1em;
+        }
+
+        ul {
+            margin-bottom: 2em;
+            font-size: 1.1em;
+        }
+
+        li {
+            margin-bottom: 0.8em;
+        }
+
+        /* --- Tool Cards Container --- */
+        .tools-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3%; /* Provides spacing between the 30% width cards */
+            margin-top: 2.5em;
+        }
+
+        /* --- Individual Tool Cards --- */
+        .tool-card {
+            width: 31%; /* Roughly 30%, accounting for the gap */
+            height: 6em;
+            box-shadow: 4px 6px 12px rgba(0, 0, 0, 0.4);
+            text-decoration: none;
+            color: #111; /* Dark text ensures readability on pastel backgrounds */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 0 1.5em;
+            box-sizing: border-box;
+            margin-bottom: 3%;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            /* overflow: hidden ensures text doesn't spill out if it gets too long */
+            overflow: hidden;
+        }
+
+        .tool-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 6px 8px 16px rgba(0, 0, 0, 0.5);
+        }
+
+        .tool-title {
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-bottom: 0.3em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .tool-desc {
+            font-size: 0.9em;
+            opacity: 0.85;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* --- Mobile Responsiveness --- */
+        @media (max-width: 768px) {
+            .tool-card {
+                width: 100%;
+                margin-bottom: 5%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="content-wrapper">
+        <h1>Hello! I am Gian, and I currently do 2 jobs:</h1>
+
+        <ul>
+            <li>PhD in Interpretable Metaheuristics, at the University of Stirling. I'm currently working on my Thesis, and I expect to have my Viva at the end of July.</li>
+            <li>Teacher in the International Study Centre, next to the University of Stirling.</li>
+        </ul>
+
+        <p>This page will contain links to many little tools I created over time to help myself, my students and my co-workers.</p>
+
+        <!-- The JavaScript will inject the tool rectangles here -->
+        <div id="tools-container" class="tools-container"></div>
+    </div>
+
+    <script>
+        // --- 1. The Data ---
+        // Easy to edit JSON list. Descriptions are left as placeholders for you.
+        const toolsData = [
+            {
+                "name": "Student Marathon",
+                "description": "Placeholder description for this tool.",
+                "link": "student_marathon.html"
+            },
+            {
+                "name": "Marking Table Generator",
+                "description": "Placeholder description for this tool.",
+                "link": "marking_table_generator.html"
+            },
+            {
+                "name": "LaTeX Table Generator",
+                "description": "Placeholder description for this tool.",
+                "link": "latex_table_generator.html"
+            }
+        ];
+
+        // --- 2. Helper Functions ---
+
+        // Generates a random pastel color using HSL (Hue, Saturation, Lightness)
+        // Lightness is kept high (80%) and Saturation medium (70%) to ensure it looks pastel
+        function getRandomPastelColor() {
+            const hue = Math.floor(Math.random() * 360);
+            return `hsl(${hue}, 70%, 80%)`;
+        }
+
+        // Generates 4 random border radii between 5px and 35px for an organic, slightly asymmetrical look
+        function getRandomCorners() {
+            const randomPx = () => Math.floor(Math.random() * 30 + 5) + 'px';
+            return `${randomPx()} ${randomPx()} ${randomPx()} ${randomPx()}`;
+        }
+
+        // --- 3. DOM Manipulation ---
+        const container = document.getElementById('tools-container');
+
+        // Loop through the JSON array and build the HTML for each tool
+        toolsData.forEach(tool => {
+            // Create the anchor (link) element that acts as the rectangle
+            const card = document.createElement('a');
+            card.href = tool.link;
+            card.className = 'tool-card';
+            card.style.backgroundColor = getRandomPastelColor();
+            card.style.borderRadius = getRandomCorners();
+
+            // Create the title text
+            const title = document.createElement('div');
+            title.className = 'tool-title';
+            title.textContent = tool.name;
+
+            // Create the description text
+            const desc = document.createElement('div');
+            desc.className = 'tool-desc';
+            desc.textContent = tool.description;
+
+            // Assemble the card and add it to the page
+            card.appendChild(title);
+            card.appendChild(desc);
+            container.appendChild(card);
+        });
+    </script>
+</body>
+</html>
