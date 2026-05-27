@@ -12,6 +12,8 @@
             --warning-border: #ffeeba;
             --warning-text: #856404;
             --accent-color: #007bff;
+            --selected-bg: #e2f0fe;
+            --selected-border: #b8daff;
         }
 
         body {
@@ -136,8 +138,6 @@
             width: 10%;
         }
 
-        /* The dynamic grade columns will split the remaining 70% */
-
         thead th {
             background-color: #f1f3f5;
             font-size: 0.85rem;
@@ -145,6 +145,36 @@
 
         .crit-title { font-weight: bold; display: block; }
         .crit-desc { font-size: 0.8rem; color: #666; font-weight: normal; }
+
+        /* Grade Selection Styling */
+        .grade-cell {
+            cursor: pointer;
+            transition: background-color 0.15s, color 0.15s;
+            user-select: none;
+        }
+
+        .grade-cell:hover {
+            background-color: #f1f3f5;
+        }
+
+        .grade-cell.selected {
+            background-color: var(--selected-bg) !important;
+            border: 2px solid var(--accent-color);
+            font-weight: bold;
+            color: #004085;
+        }
+
+        /* Score Tally Row */
+        .total-row {
+            background-color: #e9ecef;
+            font-weight: bold;
+        }
+
+        .total-row td {
+            text-align: left;
+            font-size: 1.05rem;
+            padding: 12px 8px;
+        }
 
         /* Footer / Actions */
         .actions {
@@ -181,7 +211,6 @@
 </header>
 
 <div class="main-wrapper">
-    <!-- LEFT PANEL: Output -->
     <div id="left-panel">
         <div id="notifications"></div>
         <div id="table-output"></div>
@@ -192,19 +221,14 @@
         </div>
     </div>
 
-    <!-- RESIZER -->
     <div id="resizer"></div>
 
-    <!-- RIGHT PANEL: Inputs -->
     <div id="right-panel">
         <div class="input-group">
             <label>Criteria (Syntax: Name (Weight%): Description)</label>
             <textarea id="crit-input">Functionality (30%): Does the program launch without errors? Does it correctly read the input file? Does it correctly save the file?
-
 User Interface (20%): Is the GUI layout clear? Can a user understand how to use it immediately? Is the date/time input easy to use?
-
 Data Structures (25%): Report: Did you justify why you chose your specific data structure? Did you discuss the pros and cons?
-
 AI and critical thinking (25%): Report: Is the AI usage clearly documented? Did you critically check the AI code? Does the report explain the decisions you've taken</textarea>
         </div>
 
@@ -227,6 +251,10 @@ None (0)</textarea>
     const levelInput = document.getElementById('level-input');
     const tableOutput = document.getElementById('table-output');
     const notifications = document.getElementById('notifications');
+
+    // State object to remember score choices per row index
+    let selectedScores = {};
+    let maxPossibleScore = 0;
 
     // 1. Panel Resizing Logic
     let isResizing = false;
@@ -252,7 +280,7 @@ None (0)</textarea>
         document.body.style.cursor = 'default';
     });
 
-    // 2. Generation Logic
+    // 2. Generation & Calculation Logic
     function update() {
         const critText = critInput.value.split('\n').filter(l => l.trim() !== '');
         const levelText = levelInput.value.split('\n').filter(l => l.trim() !== '');
@@ -288,6 +316,9 @@ None (0)</textarea>
             }
         });
 
+        // Calculate max possible score dynamically (Highest level score)
+        maxPossibleScore = levels.length > 0 ? Math.max(...levels.map(l => l.score)) : 0;
+
         // Validation
         const totalWeight = criteria.reduce((sum, c) => sum + c.weight, 0);
         if (criteria.length > 0 && Math.abs(totalWeight - 100) > 0.1) {
@@ -313,22 +344,77 @@ None (0)</textarea>
         levels.forEach(l => tableHtml += `<th>${l.name}</th>`);
         tableHtml += '</tr></thead><tbody>';
 
-        criteria.forEach(c => {
-            tableHtml += `<tr>
+        criteria.forEach((c, rowIndex) => {
+            tableHtml += `<tr data-row-index="${rowIndex}">
                 <td><span class="crit-title">${c.name}</span><span class="crit-desc">${c.desc}</span></td>
                 <td>${c.weight}%</td>`;
 
             levels.forEach(l => {
                 const raw = (l.score * (c.weight / 100));
-                // Rounding to 1 decimal place if not an integer
                 const val = Math.round(raw * 10) / 10;
-                tableHtml += `<td>${val}</td>`;
+
+                // Keep selection persistent across structural text re-inputs if match is possible
+                const isSelected = selectedScores[rowIndex] === val;
+                const cellClass = isSelected ? 'grade-cell selected' : 'grade-cell';
+
+                tableHtml += `<td class="${cellClass}" data-value="${val}">${val}</td>`;
             });
             tableHtml += '</tr>';
         });
 
+        // Add Total Running Row at the bottom
+        const columnSpan = levels.length + 2;
+        tableHtml += `<tr class="total-row">
+            <td colspan="${columnSpan}">Total Calculated Score: <span id="running-total">0</span> / ${maxPossibleScore}</td>
+        </tr>`;
+
         tableHtml += '</tbody></table>';
         tableOutput.innerHTML = tableHtml;
+
+        // Add interactive clicking capability to the fresh cells
+        setupCellClicking();
+        calculateTotal();
+    }
+
+    // Handle interactive selection
+    function setupCellClicking() {
+        const cells = tableOutput.querySelectorAll('.grade-cell');
+        cells.forEach(cell => {
+            cell.addEventListener('click', function() {
+                const row = this.closest('tr');
+                const rowIndex = row.getAttribute('data-row-index');
+                const scoreValue = parseFloat(this.getAttribute('data-value'));
+
+                // If user clicks the already selected cell, toggle it off
+                if (this.classList.contains('selected')) {
+                    this.classList.remove('selected');
+                    delete selectedScores[rowIndex];
+                } else {
+                    // Clear other selections in the same row
+                    row.querySelectorAll('.grade-cell').forEach(c => c.classList.remove('selected'));
+                    // Select current cell
+                    this.classList.add('selected');
+                    selectedScores[rowIndex] = scoreValue;
+                }
+
+                calculateTotal();
+            });
+        });
+    }
+
+    // Tally up checked fields
+    function calculateTotal() {
+        let sum = 0;
+        for (const rowIndex in selectedScores) {
+            sum += selectedScores[rowIndex];
+        }
+        // Round safely to fix JS IEEE floating precision glitches
+        sum = Math.round(sum * 10) / 10;
+
+        const totalSpan = document.getElementById('running-total');
+        if (totalSpan) {
+            totalSpan.textContent = sum;
+        }
     }
 
     // 3. Clipboard Logic
@@ -339,6 +425,9 @@ None (0)</textarea>
         let output = "";
         const rows = table.querySelectorAll('tr');
         rows.forEach(row => {
+            // Include everything except our custom score counter row in raw clipboard copies
+            if (row.classList.contains('total-row')) return;
+
             const cells = Array.from(row.querySelectorAll('th, td')).map(c => c.innerText.replace(/\n/g, " "));
             output += cells.join('\t') + "\n";
         });
@@ -350,8 +439,14 @@ None (0)</textarea>
         });
     });
 
-    critInput.addEventListener('input', update);
-    levelInput.addEventListener('input', update);
+    // Reset current score memory cache cleanly if structural changes occur in input areas
+    function clearScoresAndUpdate() {
+        selectedScores = {};
+        update();
+    }
+
+    critInput.addEventListener('input', clearScoresAndUpdate);
+    levelInput.addEventListener('input', clearScoresAndUpdate);
 
     // Initial run
     update();
