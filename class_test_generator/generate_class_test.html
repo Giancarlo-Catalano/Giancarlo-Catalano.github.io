@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Class Test Generator</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://unpkg.com/docx@8.2.3/build/index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <style>
+        /* UI Styling */
+        body { font-family: system-ui, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
+        .controls { max-width: 210mm; margin: 0 auto 20px auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        button { padding: 10px 15px; margin-right: 10px; cursor: pointer; background: #0056b3; color: white; border: none; border-radius: 4px; }
+        button:hover { background: #004494; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+
+        /* A4 Page Styling */
+        #preview-container {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            background: white;
+            padding: 20mm;
+            box-sizing: border-box;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        /* Test Content Formatting */
+        .test-block { margin-bottom: 24px; page-break-inside: avoid; /* Prevents splitting across pages */ }
+        .cover-page { text-align: center; margin-bottom: 50px; border-bottom: 2px solid #000; padding-bottom: 20px; }
+        .mcq-question { font-weight: bold; margin-bottom: 10px; }
+        .mcq-options { list-style-type: upper-alpha; margin-top: 5px; }
+        .mcq-options li { margin-bottom: 5px; }
+        .test-image { max-width: 100%; height: auto; margin: 10px 0; }
+        .text-box { padding: 15px; border: 1px solid #ccc; background: #fafafa; }
+
+        /* Print Specific CSS */
+        @media print {
+            body { background: white; padding: 0; }
+            .controls { display: none; }
+            #preview-container { box-shadow: none; margin: 0; width: 100%; }
+            @page { size: A4; margin: 20mm; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <h2>Class Test Generator</h2>
+        <input type="file" id="fileInput" accept=".pptx" />
+        <br><br>
+        <button id="btnPrint" onclick="window.print()" disabled>Print / Save to PDF</button>
+        <button id="btnWord" onclick="exportToWord()" disabled>Export to Word</button>
+    </div>
+
+    <div id="preview-container">
+        <p style="color: #666; text-align: center;">Upload a template to generate the test preview.</p>
+    </div>
+
+    <script>
+        let testData = []; // Store parsed data for Word export
+        let globalQuestionCounter = 1;
+
+        document.getElementById('fileInput').addEventListener('change', async function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            document.getElementById('preview-container').innerHTML = '<p>Processing...</p>';
+            testData = [];
+            globalQuestionCounter = 1;
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const zip = await JSZip.loadAsync(arrayBuffer);
+
+                // Get slides and sort them numerically
+                const slideFiles = Object.keys(zip.files).filter(name => name.match(/^ppt\/slides\/slide\d+\.xml$/));
+                slideFiles.sort((a, b) => parseInt(a.match(/\d+/)[0]) - parseInt(b.match(/\d+/)[0]));
+
+                for (let filename of slideFiles) {
+                    await processSlide(zip, filename);
+                }
+
+                renderHTML();
+                document.getElementById('btnPrint').disabled = false;
+                document.getElementById('btnWord').disabled = false;
+
+            } catch (err) {
+                document.getElementById('preview-container').innerHTML = `<p style="color:red;">Error: ${err.message}</p>`;
+            }
+        });
+
+        async function processSlide(zip, slideFilename) {
+            const xmlContent = await zip.file(slideFilename).async("string");
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlContent, "text/xml");
+
+            // 1. Identify slide title
+            let title = "";
+            const titleNodes = xmlDoc.querySelectorAll('p\\:nvSpPr p\\:nvPr p\\:ph[type="ctrTitle"], p\\:nvSpPr p\\:nvPr p\\:ph[type="title"]');
+            if (titleNodes.length > 0) {
+                const shapeNode = titleNodes[0].closest('p\\:sp');
+                if (shapeNode) {
+                    const textNodes = shapeNode.querySelectorAll('a\\:t');
+                    title = Array.from(textNodes).map(n => n.textContent).join('');
+                }
+            }
+
+            // Skip instructions
+            if (title.toLowerCase().includes("step 1") || title === "Class test creation template") return;
+
+            // 2. Determine Block Type based on title
+            if (title.includes("Cover page")) {
+                const tableData = extractTable(xmlDoc);
+                testData.push({ type: 'cover', data: tableData });
+            }
+            else if (title.includes("MCQ Question")) {
+                const tableData = extractTable(xmlDoc);
+                let imgData = null;
+
+                // Handle image if present
+                const blip = xmlDoc.querySelector('a\\:blip');
+                if (blip) {
+                    imgData = await extractImage(zip, slideFilename, blip.getAttribute('r:embed'));
+                }
+
+                testData.push({
+                    type: 'mcq',
+                    question: tableData[0]?.[1] || "Missing Question",
+                    options: tableData.slice(1).map(row => row[1]),
+                    image: imgData
+                });
+            }
+            else if (title.includes("Text in a box")) {
+                // Extract standalone text boxes
+                const shapes = xmlDoc.querySelectorAll('p\\:sp');
+                let boxText = [];
+                shapes.forEach(shape => {
+                    // Ignore title shapes
+                    if (!shape.querySelector('p\\:ph[type="ctrTitle"]')) {
+                        const paras = shape.querySelectorAll('a\\:p');
+                        paras.forEach(p => {
+                            const text = Array.from(p.querySelectorAll('a\\:t')).map(t => t.textContent).join('');
+                            if(text) boxText.push(text);
+                        });
+                    }
+                });
+                testData.push({ type: 'text', paragraphs: boxText });
+            }
+        }
+
+        function extractTable(xmlDoc) {
+            const tableData = [];
+            const rows = xmlDoc.querySelectorAll('a\\:tr');
+            rows.forEach(row => {
+                const rowData = [];
+                const cells = row.querySelectorAll('a\\:tc');
+                cells.forEach(cell => {
+                    const text = Array.from(cell.querySelectorAll('a\\:t')).map(n => n.textContent).join('');
+                    rowData.push(text);
+                });
+                if (rowData.length > 0) tableData.push(rowData);
+            });
+            return tableData;
+        }
+
+        async function extractImage(zip, slideFilename, rId) {
+            // Read the rels file for this slide to find the image target
+            const relsFilename = slideFilename.replace('ppt/slides/', 'ppt/slides/_rels/') + '.rels';
+            const relsContent = await zip.file(relsFilename).async("string");
+            const relsDoc = new DOMParser().parseFromString(relsContent, "text/xml");
+
+            const relNode = relsDoc.querySelector(`Relationship[Id="${rId}"]`);
+            if (relNode) {
+                let target = relNode.getAttribute('Target'); // e.g., ../media/image1.jpeg
+                target = target.replace('../', 'ppt/');
+
+                // Extract image as base64
+                const imgBinary = await zip.file(target).async("uint8array");
+                let binary = '';
+                imgBinary.forEach(b => binary += String.fromCharCode(b));
+                return 'data:image/jpeg;base64,' + window.btoa(binary);
+            }
+            return null;
+        }
+
+        function renderHTML() {
+            const container = document.getElementById('preview-container');
+            container.innerHTML = ''; // Clear
+
+            testData.forEach(block => {
+                const div = document.createElement('div');
+                div.className = 'test-block';
+
+                if (block.type === 'cover') {
+                    div.className += ' cover-page';
+                    block.data.forEach(row => {
+                        div.innerHTML += `<h2>${row[0]}: ${row[1] || ''}</h2>`;
+                    });
+                }
+                else if (block.type === 'mcq') {
+                    let html = `<div class="mcq-question">${globalQuestionCounter}. ${block.question}</div>`;
+
+                    if (block.image) {
+                        html += `<img src="${block.image}" class="test-image" />`;
+                    }
+
+                    html += `<ol class="mcq-options">`;
+                    block.options.forEach(opt => {
+                        if(opt) html += `<li>${opt}</li>`;
+                    });
+                    html += `</ol>`;
+                    div.innerHTML = html;
+                    globalQuestionCounter++;
+                }
+                else if (block.type === 'text') {
+                    div.className += ' text-box';
+                    block.paragraphs.forEach(p => {
+                        div.innerHTML += `<p>${p}</p>`;
+                    });
+                }
+
+                container.appendChild(div);
+            });
+        }
+
+        // --- EXPORT TO WORD LOGIC ---
+        async function exportToWord() {
+            const docChildren = [];
+            let wordQuestionCounter = 1;
+
+            testData.forEach(block => {
+                if (block.type === 'cover') {
+                    block.data.forEach(row => {
+                        docChildren.push(new docx.Paragraph({
+                            text: `${row[0]}: ${row[1] || ''}`,
+                            heading: docx.HeadingLevel.HEADING_2,
+                            alignment: docx.AlignmentType.CENTER,
+                        }));
+                    });
+                    docChildren.push(new docx.Paragraph({ text: "", pageBreakBefore: true })); // Page break after cover
+                }
+                else if (block.type === 'mcq') {
+                    // Question text
+                    docChildren.push(new docx.Paragraph({
+                        children: [new docx.TextRun({ text: `${wordQuestionCounter}. ${block.question}`, bold: true })],
+                        spacing: { before: 240, after: 120 }
+                    }));
+
+                    // Optional Image (docx.js requires arraybuffer for images)
+                    if (block.image) {
+                        const base64Data = block.image.split(',')[1];
+                        const byteCharacters = atob(base64Data);
+                        const byteNumbers = new Array(byteCharacters.length);
+                        for (let i = 0; i < byteCharacters.length; i++) {
+                            byteNumbers[i] = byteCharacters.charCodeAt(i);
+                        }
+                        const byteArray = new Uint8Array(byteNumbers);
+
+                        docChildren.push(new docx.Paragraph({
+                            children: [
+                                new docx.ImageRun({
+                                    data: byteArray,
+                                    transformation: { width: 400, height: 300 } // Default scale, can be improved
+                                })
+                            ]
+                        }));
+                    }
+
+                    // Options
+                    block.options.forEach((opt, index) => {
+                        if (opt) {
+                            const letter = String.fromCharCode(65 + index); // A, B, C...
+                            docChildren.push(new docx.Paragraph({
+                                text: `${letter}) ${opt}`,
+                                indent: { left: 720 }, // Indent options
+                                spacing: { after: 120 }
+                            }));
+                        }
+                    });
+                    wordQuestionCounter++;
+                }
+                else if (block.type === 'text') {
+                    block.paragraphs.forEach(p => {
+                        docChildren.push(new docx.Paragraph({
+                            text: p,
+                            spacing: { after: 120 }
+                        }));
+                    });
+                }
+            });
+
+            // Construct Word Document
+            const doc = new docx.Document({
+                sections: [{
+                    properties: {},
+                    children: docChildren
+                }]
+            });
+
+            // Generate and save
+            docx.Packer.toBlob(doc).then(blob => {
+                saveAs(blob, "Class_Test.docx");
+            });
+        }
+    </script>
+</body>
+</html>

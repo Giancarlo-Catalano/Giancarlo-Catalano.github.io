@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPTX Template Reverse Engineer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+        .slide-output { margin-top: 20px; border: 1px solid #ccc; padding: 10px; border-radius: 5px; background: #f9f9f9;}
+        textarea { width: 100%; height: 300px; font-family: monospace; font-size: 12px; margin-top: 10px; }
+        button, input { margin-top: 10px; padding: 10px; }
+    </style>
+</head>
+<body>
+
+    <h2>PPTX Template Reverse Engineer</h2>
+    <p>Upload your .pptx template to extract the underlying XML structure of the slides.</p>
+
+    <input type="file" id="fileInput" accept=".pptx" />
+    <div id="outputContainer"></div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const arrayBuffer = e.target.result;
+
+                // Use JSZip to open the pptx archive
+                JSZip.loadAsync(arrayBuffer).then(function(zip) {
+                    const outputContainer = document.getElementById('outputContainer');
+                    outputContainer.innerHTML = '<h3>Extracted Slide XML:</h3>';
+
+                    // Filter for slide XML files in the archive
+                    const slideFiles = Object.keys(zip.files).filter(name => name.match(/^ppt\/slides\/slide\d+\.xml$/));
+
+                    if (slideFiles.length === 0) {
+                        outputContainer.innerHTML += '<p>No slides found.</p>';
+                        return;
+                    }
+
+                    // Sort slides numerically so they appear in order
+                    slideFiles.sort((a, b) => {
+                        const numA = parseInt(a.match(/\d+/)[0]);
+                        const numB = parseInt(b.match(/\d+/)[0]);
+                        return numA - numB;
+                    });
+
+                    // Extract and display the text from each slide
+                    slideFiles.forEach(function(filename) {
+                        zip.file(filename).async("string").then(function(xmlContent) {
+                            const slideDiv = document.createElement('div');
+                            slideDiv.className = 'slide-output';
+                            slideDiv.innerHTML = `<strong>${filename}</strong><br>
+                                                  <textarea readonly>${formatXML(xmlContent)}</textarea>`;
+                            outputContainer.appendChild(slideDiv);
+                        });
+                    });
+                }).catch(function(err) {
+                    alert("Error reading PPTX file: " + err.message);
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        // Simple helper to add some basic indentation to the XML string for readability
+        function formatXML(xml) {
+            let formatted = '';
+            let reg = /(>)(<)(\/*)/g;
+            xml = xml.replace(reg, '$1\r\n$2$3');
+            let pad = 0;
+            xml.split('\r\n').forEach(function(node) {
+                let indent = 0;
+                if (node.match( /.+<\/\w[^>]*>$/ )) {
+                    indent = 0;
+                } else if (node.match( /^<\/\w/ )) {
+                    if (pad != 0) { pad -= 1; }
+                } else if (node.match( /^<\w[^>]*[^\/]>.*$/ )) {
+                    indent = 1;
+                } else {
+                    indent = 0;
+                }
+                let padding = '';
+                for (let i = 0; i < pad; i++) { padding += '  '; }
+                formatted += padding + node + '\r\n';
+                pad += indent;
+            });
+            return formatted;
+        }
+    </script>
+</body>
+</html>
