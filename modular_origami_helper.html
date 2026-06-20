@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paper Grid Optimizer</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 20px;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .panel {
+            flex: 1;
+            min-width: 300px;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .bg-blue {
+            background-color: #e3f2fd; /* Light Blue */
+        }
+        .bg-orange {
+            background-color: #fff3e0; /* Light Orange */
+        }
+        h2 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            color: #444;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        select, input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 2em;
+        }
+        .custom-inputs {
+            display: none;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .custom-inputs.active {
+            display: flex;
+        }
+        .controls-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 12px;
+            font-size: 1em;
+        }
+        .controls-row .form-group {
+            margin-bottom: 0;
+            width: 25%;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+
+        /* Table Styles */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        th {
+            background-color: #e1bee7; /* Light Purple */
+            padding: 12px;
+            text-align: left;
+            font-weight: bold;
+            border-bottom: 2px solid #ce93d8;
+        }
+        th button {
+            background: none;
+            color: inherit;
+            border: none;
+            padding: 0;
+            font: inherit;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            width: 100%;
+            text-align: left;
+        }
+        th button:hover {
+            background-color: transparent;
+            text-decoration: underline;
+        }
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:nth-child(even) {
+            background-color: #f3e5f5; /* Very Light Purple for alternating */
+        }
+        tr:nth-child(odd) {
+            background-color: #ffffff;
+        }
+        .empty-message {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Paper Grid Optimizer</h1>
+
+    <div class="container">
+        <div class="panel bg-blue">
+            <h2>Big Paper Size</h2>
+            <div class="form-group">
+                <label for="big-select">Select Size</label>
+                <select id="big-select">
+                    <option value="21,29.7">A4 (21 x 29.7 cm)</option>
+                    <option value="29.7,42">A3 (29.7 × 42 cm)</option>
+                    <option value="15,15">15cm x 15cm</option>
+                    <option value="18,18">18cm x 18cm</option>
+                    <option value="custom">Custom...</option>
+                </select>
+            </div>
+            <div class="custom-inputs" id="big-custom">
+                <div>
+                    <label>Width (cm)</label>
+                    <input type="number" id="big-w" step="0.1" value="20">
+                </div>
+                <div>
+                    <label>Height (cm)</label>
+                    <input type="number" id="big-h" step="0.1" value="30">
+                </div>
+            </div>
+        </div>
+
+        <div class="panel bg-orange">
+            <h2>Small Paper Proportions</h2>
+            <div class="form-group">
+                <label for="small-select">Select Proportions</label>
+                <select id="small-select">
+                    <option value="1,1">1 x 1</option>
+                    <option value="1,2">1 x 2</option>
+                    <option value="1,1.41421356">1 x √2</option>
+                    <option value="1,1.73205081">1 x √3</option>
+                    <option value="custom">Custom...</option>
+                </select>
+            </div>
+            <div class="custom-inputs" id="small-custom">
+                <div>
+                    <label>Prop Width</label>
+                    <input type="number" id="small-w" step="0.01" value="3">
+                </div>
+                <div>
+                    <label>Prop Height</label>
+                    <input type="number" id="small-h" step="0.01" value="4">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls-row">
+        <button onclick="runSearch()" style="height:5em;">Search Optimal Grids</button>
+        <div class="form-group">
+            <label title="Maximum divisions to test on a single axis">Max Bound (B)</label>
+            <input type="number" id="max-b" value="8" min="1" step="1">
+        </div>
+        <div class="form-group">
+            <label title="Tolerance for Pareto dominance (e.g., 0.0001)">Tolerance (ε)</label>
+            <input type="number" id="tolerance" value="0.0001" step="0.0001" min="0">
+        </div>
+
+    </div>
+
+    <table id="results-table">
+        <thead>
+            <tr>
+                <th><button onclick="sortBy('quantity')">Units Obtained <span class="sort-icon" id="sort-quantity">↕</span></button></th>
+                <th><button onclick="sortBy('area')">Unit Area (cm²) <span class="sort-icon" id="sort-area">↕</span></button></th>
+                <th><button onclick="sortBy('usage')">Usage <span class="sort-icon" id="sort-usage">↕</span></button></th>
+                <th><button onclick="sortBy('orientation')">Orientation <span class="sort-icon" id="sort-orientation">↕</span></button></th>
+                <th><button onclick="sortBy('length')">Unit Length (cm) <span class="sort-icon" id="sort-length">↕</span></button></th>
+                <th><button onclick="sortBy('height')">Unit Height (cm) <span class="sort-icon" id="sort-height">↕</span></button></th>
+            </tr>
+        </thead>
+        <tbody id="table-body">
+            <tr>
+                <td colspan="6" class="empty-message">Click "Search Optimal Grids" to find solutions.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <script>
+        // --- UI Logic ---
+        function toggleCustom(selectId, customId) {
+            const select = document.getElementById(selectId);
+            const custom = document.getElementById(customId);
+            select.addEventListener('change', () => {
+                if (select.value === 'custom') {
+                    custom.classList.add('active');
+                } else {
+                    custom.classList.remove('active');
+                }
+            });
+        }
+        toggleCustom('big-select', 'big-custom');
+        toggleCustom('small-select', 'small-custom');
+
+        function getDimensions(selectId, wId, hId) {
+            const val = document.getElementById(selectId).value;
+            if (val === 'custom') {
+                return {
+                    w: parseFloat(document.getElementById(wId).value),
+                    h: parseFloat(document.getElementById(hId).value)
+                };
+            } else {
+                const parts = val.split(',');
+                return { w: parseFloat(parts[0]), h: parseFloat(parts[1]) };
+            }
+        }
+
+        // --- Core Algorithm Logic ---
+        function get_grid_proportions(height_main, width_main, divisions_height, divisions_width, B) {
+            const whole_divisions_height = Math.min(Math.floor(divisions_height), B);
+            const whole_divisions_width  = Math.min(Math.floor(divisions_width), B);
+            const quantity = whole_divisions_height * whole_divisions_width;
+
+            const height_small = height_main / divisions_height;
+            const width_small  = width_main  / divisions_width;
+
+            const small_area = height_small * width_small;
+            const covered_area = (whole_divisions_height * height_small) * (whole_divisions_width * width_small);
+            const covered_area_ratio = covered_area / (height_main * width_main);
+
+            return {
+                quantity: quantity,
+                area: small_area,
+                usage: covered_area_ratio,
+                height: height_small,
+                length: width_small
+            };
+        }
+
+        function pareto_dominates(s1, s2, tol) {
+            // Objectives: quantity, area, usage (all to be maximized)
+            let betterOrEq = true;
+            let strictlyBetter = false;
+
+            const objs = ['quantity', 'area', 'usage'];
+
+            for (let obj of objs) {
+                if (s1[obj] < s2[obj] - tol) {
+                    betterOrEq = false;
+                }
+                if (s1[obj] > s2[obj] + tol) {
+                    strictlyBetter = true;
+                }
+            }
+            return betterOrEq && strictlyBetter;
+        }
+
+        let currentData = [];
+        let currentSort = { col: 'quantity', dir: 'desc' };
+
+        function runSearch() {
+            const big = getDimensions('big-select', 'big-w', 'big-h');
+            const smallProp = getDimensions('small-select', 'small-w', 'small-h');
+            const B = parseInt(document.getElementById('max-b').value);
+            const tol = parseFloat(document.getElementById('tolerance').value);
+
+            if (!big.w || !big.h || !smallProp.w || !smallProp.h || !B) {
+                alert("Please ensure all inputs have valid numbers.");
+                return;
+            }
+
+            let allSolutions = [];
+
+            // Ratio of small paper (Width / Height)
+            const ratio1 = smallProp.w / smallProp.h;
+            const ratio2 = smallProp.h / smallProp.w;
+
+            // Define orientations to test
+            let orientationsToTest = [{ name: 'Horizontal', ratio: ratio1 }];
+            // If proportions aren't a square, add vertical orientation
+            if (Math.abs(smallProp.w - smallProp.h) > 0.0001) {
+                orientationsToTest.push({ name: 'Vertical', ratio: ratio2 });
+            }
+
+            for (let ori of orientationsToTest) {
+                const P = ori.ratio; // P = small_width / small_height
+
+                // 1. Divide height whole
+                for (let div_h = 1; div_h <= B; div_h++) {
+                    const small_h = big.h / div_h;
+                    const small_w = small_h * P;
+                    const div_w = big.w / small_w;
+
+                    if (div_w >= 1) {
+                        let sol = get_grid_proportions(big.h, big.w, div_h, div_w, B);
+                        sol.orientation = ori.name;
+                        if (sol.quantity > 0) allSolutions.push(sol);
+                    }
+                }
+
+                // 2. Divide width whole
+                for (let div_w = 1; div_w <= B; div_w++) {
+                    const small_w = big.w / div_w;
+                    const small_h = small_w / P;
+                    const div_h = big.h / small_h;
+
+                    if (div_h >= 1) {
+                        let sol = get_grid_proportions(big.h, big.w, div_h, div_w, B);
+                        sol.orientation = ori.name;
+                        if (sol.quantity > 0) allSolutions.push(sol);
+                    }
+                }
+            }
+
+            // Remove exact duplicates to optimize pareto search
+            let uniqueSolutions = [];
+            allSolutions.forEach(s => {
+                const isDup = uniqueSolutions.some(u =>
+                    Math.abs(u.quantity - s.quantity) < 0.0001 &&
+                    Math.abs(u.area - s.area) < 0.0001 &&
+                    Math.abs(u.usage - s.usage) < 0.0001 &&
+                    Math.abs(u.length - s.length) < 0.0001 &&
+                    Math.abs(u.height - s.height) < 0.0001
+                );
+                if (!isDup) uniqueSolutions.push(s);
+            });
+
+            // Calculate Pareto Front
+            let pareto_front = [];
+            for (let new_item of uniqueSolutions) {
+                let should_add = true;
+                for (let other of pareto_front) {
+                    if (pareto_dominates(other, new_item, tol)) {
+                        should_add = false;
+                        break;
+                    }
+                }
+
+                if (should_add) {
+                    let new_pareto_front = [new_item];
+                    for (let old_item of pareto_front) {
+                        if (!pareto_dominates(new_item, old_item, tol)) {
+                            new_pareto_front.push(old_item);
+                        }
+                    }
+                    pareto_front = new_pareto_front;
+                }
+            }
+
+            currentData = pareto_front;
+
+            // Set default sort and render
+            currentSort = { col: 'area', dir: 'desc' };
+            renderTable();
+        }
+
+        // --- Table & Sorting Logic ---
+        function sortBy(column) {
+            if (currentSort.col === column) {
+                currentSort.dir = currentSort.dir === 'desc' ? 'asc' : 'desc';
+            } else {
+                currentSort.col = column;
+                currentSort.dir = 'desc'; // Default to biggest-first for new column
+            }
+            renderTable();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            // Update Headers Icons
+            document.querySelectorAll('.sort-icon').forEach(el => el.innerText = '↕');
+            if (currentData.length > 0) {
+                const icon = currentSort.dir === 'desc' ? '↓' : '↑';
+                document.getElementById(`sort-${currentSort.col}`).innerText = icon;
+            }
+
+            if (currentData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-message">No valid solutions found.</td></tr>';
+                return;
+            }
+
+            // Sort Data
+            currentData.sort((a, b) => {
+                let valA = a[currentSort.col];
+                let valB = b[currentSort.col];
+
+                if (typeof valA === 'string') {
+                    valA = valA.toLowerCase();
+                    valB = valB.toLowerCase();
+                }
+
+                if (valA < valB) return currentSort.dir === 'asc' ? -1 : 1;
+                if (valA > valB) return currentSort.dir === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            // Render Rows
+            currentData.forEach(row => {
+                const tr = document.createElement('tr');
+
+
+                const big = getDimensions('big-select', 'big-w', 'big-h');
+                const divisions_width = Math.floor(big.w / row.length );
+                const divisions_height = Math.floor(big.h / row.height );
+
+
+                tr.innerHTML = `
+                    <td>${row.quantity} (${divisions_width} x ${divisions_height})</td>
+                    <td>${row.area.toFixed(2)}</td>
+                    <td>${(row.usage * 100).toFixed(2)}%</td>
+                    <td>${row.orientation}</td>
+                    <td>${row.length.toFixed(2)}</td>
+                    <td>${row.height.toFixed(2)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    </script>
+</body>
+</html>
