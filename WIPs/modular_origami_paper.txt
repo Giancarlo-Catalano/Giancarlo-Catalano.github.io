@@ -1,0 +1,95 @@
+I would like a single-file html webpage to automate a simple task that I do often.
+
+I often need to cut many small rectangles of paper out of a bigger piece of paper. The rectangles need to have a certain proportion, and there is a trade-off between how big they are and how many I get from the main piece of paper.
+I want a page which calculates all the "optimal" ways of dividing the big piece of paper into a grid that produces the smaller pieces of paper.
+
+
+This is essentially a multi-objective optimisation problem.
+The problem is parametrised by:
+* the height and width of the big piece of paper (cm)
+* the proportions of the small piece of paper (without units)
+
+Each solution has parameters:
+* height (cm)
+* orientation of the small pieces relative to the bigger paper (portrait or landscape)
+
+
+Each solution has the following objectives, to be maximised:
+* quantity of small rectangles from the piece of paper
+* area of the small rectangles
+* how much of the big paper is used (i.e. 90% is used, 10% discarded)
+
+To calculate these, you will need to implement this function:
+function get_grid_proportions(height_main, width_main, divisions_height, divisions_width {
+	const whole_divisions_height = floor(divisions_height);
+	const whole_divisions_width  = floor(divisions_width);
+	const quantity = whole_divisions_height * whole_divisions_width;
+
+	const height_small = height_main / divisions_height;
+	const width_small  = width_main  / divisions_width;
+
+	const small_area = height_small * small_width;
+	const covered_area = (whole_divisions_height * height_small) * (divisions_width * width_small);
+	const covered_area_ratio = covered_area / (height_main * width_main);
+
+	return [quantity, small_area, covered_area_ratio];
+}
+
+
+There is an infinite quantity of solutions, you cannot try them all.
+We can assume that one of the sides is divided whole. The smallest "division" is 1, and the biggest is B (this will be set in the interface).
+All the solutions to be attempted are created, put into a list of pairs with (solution, objectives):
+	* for every orientation  (if the proportions of the small paper are different, and if the proportions of the big paper are different. Use "horizontal" as the default)
+		# divide the height whole
+		for height_division in [1..B]:
+			# calculate height and width division
+			# calculate the corresponding solution
+			# calculate corresponding objectives (using the height and division)
+		# divide the height whole
+		... same as before but for width
+
+
+I care about finding all the Pareto-optimal solutions. Note here to use the correct meaning of pareto optimal, with respect with the objectives we set.
+Given a list of items input_items, we can find the Pareto-front as follows (check if it's correct):
+	pareto_front = []
+	for new_item in input_items:
+		should_add = true
+		for other in pareto_front:
+			if pareto_dominates(other, new_item):
+				should_add = false
+				break
+		if should_add:
+			new_pareto_front = [new_item]
+			for old_item in pareto_front:
+				if !pareto_dominates(new_item, old_item):
+					new_pareto_front.append(old_item)
+			pareto_front = new_pareto_front
+
+	return pareto_front
+
+
+Once we've done that, we can present all the pareto_optimal solutions to the user.
+Showing the solution will be part of the interface, and it will show the solution data and the objectives data, perhaps as a table which can have its rows ordered by clicking on the table headers.
+
+# Interface
+The interface should be very simple:
+* one light blue, round corners div with the header "Big paper size"
+	* there should be a combo-box to select the size of the paper, with the options being A4, A5, 15cmx15cm, 18cmx18xm, custom.
+		* If the user selects custom, two boxes should appear below to let the user type the dimensions.
+
+* one light orange, round corners div with the header "small paper dimensions"
+	* again, combo box with default options and then a custom option. The defaults should be 1x1, 1x2, 1xsqrt(2), 1xsqrt(3), custom
+		* if the user selects custom, two boxes should appear below
+
+Then there is a button below that when clicked does the search. The result of the search is shown in a table.
+Each row of the table has the columns "units obtained", "unit area", "usage", "orientation", "unit length", "unit height",
+The headers of the table are in bold and have light purple background, the table itself has alternatiing rows with colours white and light purple.
+The headers each have buttons to order the columns. When clicked, they sort the current column.
+When the column is "not sorting", it shows "↕". When sorting from biggest to smallest, it shows ↓. When smallest to biggest, it shows ↑.
+
+By default, the table is sorted by unit quantity.
+
+
+* 1: the B parameter should be an input next to the search button.
+* 2: allow a tolerance parameter
+* 3: show the ratio as a percentage
