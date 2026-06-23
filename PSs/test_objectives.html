@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PS Metric Evaluation</title>
+    <link rel="stylesheet" href="PS_style.css">
+    <style>
+        .metric-btn {
+            background-color: #bdc3c7;
+            color: #2c3e50;
+            margin: 5px;
+            padding: 8px 15px;
+            font-size: 0.9em;
+            border-radius: 20px;
+        }
+        .metric-btn.active {
+            background-color: #27ae60;
+            color: white;
+            box-shadow: 0 0 5px rgba(39, 174, 96, 0.5);
+        }
+        .metric-section {
+            margin-bottom: 15px;
+        }
+        .selected-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+            padding: 10px;
+            background: #fff;
+            border-radius: 8px;
+            border: 1px dashed #7f8c8d;
+            min-height: 40px;
+        }
+        .selected-pill {
+            background-color: #e74c3c;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+        .selected-pill:hover { background-color: #c0392b; }
+        .selected-pill::after { content: " ×"; }
+
+        #results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        #results-table th, #results-table td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: left;
+        }
+        #results-table th { background-color: #f4f4f4; }
+    </style>
+</head>
+<body>
+
+    <h1>Evaluate Partial Solutions</h1>
+    <div id="error-banner"></div>
+
+    <div class="settings-group pastel-blue">
+        <h2>1. Upload Data Context</h2>
+        <label>Upload PRef (CSV):</label>
+        <input type="file" id="pref-upload" accept=".csv" onchange="loadPRef(event)">
+
+        <label>Upload Linkage Table (CSV):</label>
+        <input type="file" id="linkage-upload" accept=".csv" onchange="loadLinkage(event)">
+
+        <p><small id="data-status">Status: Waiting for uploads...</small></p>
+    </div>
+
+    <div class="settings-group pastel-purple">
+        <h2>2. Select Objectives to Minimize</h2>
+
+        <div class="metric-section">
+            <strong>Fitness Quality:</strong>
+            <button class="metric-btn" data-id="mean_fitness">Mean Fitness (inv)</button>
+            <button class="metric-btn" data-id="mwu">MWU Test</button>
+            <button class="metric-btn" data-id="mwu_thresh">MWU Test (Thresh)</button>
+            <button class="metric-btn" data-id="weighted_var">Weighted Variance</button>
+        </div>
+
+        <div class="metric-section">
+            <strong>Atomicity:</strong>
+            <button class="metric-btn" data-id="atomicity">Atomicity (inv)</button>
+            <button class="metric-btn" data-id="a_plus_i">A + I</button>
+        </div>
+
+        <div class="metric-section">
+            <strong>Simplicity:</strong>
+            <button class="metric-btn" data-id="star_count">Star-count (inv)</button>
+            <button class="metric-btn" data-id="independence">Independence </button>
+        </div>
+
+        <div class="metric-section">
+            <strong>Other:</strong>
+            <button class="metric-btn" data-id="robustness">Robustness (inv)</button>
+            <button class="metric-btn" data-id="sample_count">Sample Count (inv)</button>
+        </div>
+
+        <h3>Active Metrics (Click to remove)</h3>
+        <div id="active-metrics" class="selected-list"></div>
+    </div>
+
+    <div class="settings-group pastel-green">
+        <h2>3. Evaluate Pattern</h2>
+        <label>Enter PS (e.g., * * 1 * 0):</label>
+        <input type="text" id="ps-input" placeholder="* * 1 * 0">
+        <button onclick="evaluatePS()">Calculate Metrics</button>
+    </div>
+
+    <div id="results-area" class="settings-group pastel-yellow hidden">
+        <h2>Results</h2>
+        <table id="results-table">
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    <th>Calculated Score</th>
+                </tr>
+            </thead>
+            <tbody id="results-body"></tbody>
+        </table>
+    </div>
+
+    <script src="PS_objectives.js"></script>
+    <script>
+        let db = null;
+        let linkageMatrix = null;
+        let activeMetrics = new Set();
+        let L_size = 0;
+
+        // Metric mapping to function signatures
+        const metricLogic = {
+            'mean_fitness': (fm, fnm, ps) => obj_mean_fitness(fm),
+            'mwu': (fm, fnm, ps) => obj_mwu_test(fm, fnm),
+            'mwu_thresh': (fm, fnm, ps) => obj_mwu_test_threshold(fm, fnm),
+            'weighted_var': (fm, fnm, ps) => obj_weighted_variance(fm, fnm, db.N),
+            'atomicity': (fm, fnm, ps) => linkageMatrix ? obj_atomicity(ps, linkageMatrix) : "Requires Linkage",
+            'a_plus_i': (fm, fnm, ps) => linkageMatrix ? obj_a_plus_i(ps, linkageMatrix) : "Requires Linkage",
+            'star_count': (fm, fnm, ps) => obj_star_count(ps),
+            'independence': (fm, fnm, ps) => linkageMatrix ? obj_independence(ps, linkageMatrix) : "Requires Linkage",
+            'robustness': (fm, fnm, ps) => obj_robustness(fm),
+            'sample_count': (fm, fnm, ps) => obj_sample_count(fm)
+        };
+
+        const metricNames = {
+            'mean_fitness': 'Mean Fitness', 'mwu': 'MWU Test', 'mwu_thresh': 'MWU Test (Threshold)',
+            'weighted_var': 'Weighted Variance', 'atomicity': 'Atomicity', 'a_plus_i': 'Atomicity + Independence',
+            'star_count': 'Star Count', 'independence': 'Independence', 'robustness': 'Robustness', 'sample_count': 'Sample Count'
+        };
+
+        function showError(msg) {
+            const banner = document.getElementById('error-banner');
+            banner.innerText = msg;
+            banner.style.display = 'block';
+        }
+
+        function hideError() { document.getElementById('error-banner').style.display = 'none'; }
+
+        // --- Data Loading ---
+
+        function loadPRef(e) {
+            hideError();
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                const rows = evt.target.result.trim().split('\n');
+                let sols = [], fits = [];
+                let headers = rows[0].split(',');
+                let fitIdx = headers.findIndex(h => h.toLowerCase().trim() === 'fitness');
+
+                for(let i=1; i<rows.length; i++) {
+                    if(!rows[i].trim()) continue;
+                    let cols = rows[i].split(',').map(Number);
+                    sols.push(cols.slice(0, fitIdx));
+                    fits.push(cols[fitIdx]);
+                }
+                db = new PRefDatabase(sols, fits);
+                L_size = db.L;
+                updateStatus();
+            };
+            reader.readAsText(file);
+        }
+
+        function loadLinkage(e) {
+            hideError();
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                const rows = evt.target.result.trim().split('\n');
+                linkageMatrix = [];
+                for(let i=1; i<rows.length; i++) {
+                    if(!rows[i].trim()) continue;
+                    // Skip the row header (first element)
+                    let cols = rows[i].split(',').slice(1).map(x => x === "" || x === "-" ? "" : Number(x));
+                    linkageMatrix.push(cols);
+                }
+                updateStatus();
+            };
+            reader.readAsText(file);
+        }
+
+        function updateStatus() {
+            let msg = [];
+            if(db) msg.push(`PRef Loaded (N=${db.N}, L=${db.L})`);
+            if(linkageMatrix) msg.push(`Linkage Loaded (${linkageMatrix.length}x${linkageMatrix.length})`);
+            document.getElementById('data-status').innerText = msg.length ? "Status: " + msg.join(" | ") : "Status: Waiting for uploads...";
+        }
+
+        // --- UI Metric Selection ---
+
+        document.querySelectorAll('.metric-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                let id = btn.getAttribute('data-id');
+                if (activeMetrics.has(id)) return;
+
+                activeMetrics.add(id);
+                btn.classList.add('active');
+                renderActiveMetrics();
+            });
+        });
+
+        function renderActiveMetrics() {
+            const container = document.getElementById('active-metrics');
+            container.innerHTML = '';
+            activeMetrics.forEach(id => {
+                let div = document.createElement('div');
+                div.className = 'selected-pill';
+                div.innerText = metricNames[id];
+                div.onclick = () => {
+                    activeMetrics.delete(id);
+                    document.querySelector(`.metric-btn[data-id="${id}"]`).classList.remove('active');
+                    renderActiveMetrics();
+                };
+                container.appendChild(div);
+            });
+        }
+
+        // --- Evaluation ---
+
+        function evaluatePS() {
+            hideError();
+            if (!db) return showError("Please upload a PRef file first.");
+            if (activeMetrics.size === 0) return showError("Please select at least one metric.");
+
+            let rawInput = document.getElementById('ps-input').value.trim();
+            let ps = rawInput.split(/\s+/).map(x => x === '*' ? -1 : Number(x));
+
+            if (ps.length !== L_size) {
+                return showError(`PS length (${ps.length}) does not match PRef variables length (${L_size}).`);
+            }
+
+            // Perform Partitioning
+            let { matchIndices, notMatchIndices } = db.getMatches(ps);
+            let { fMatch, fNotMatch } = db.getFitnessArrays(matchIndices, notMatchIndices);
+
+            // Compute metrics
+            const tbody = document.getElementById('results-body');
+            tbody.innerHTML = '';
+
+            activeMetrics.forEach(id => {
+                let tr = document.createElement('tr');
+                let tdName = document.createElement('td');
+                let tdVal = document.createElement('td');
+
+                tdName.innerText = metricNames[id];
+
+                let val = metricLogic[id](fMatch, fNotMatch, ps);
+                tdVal.innerText = (typeof val === 'number') ? val.toFixed(5) : val;
+
+                tr.appendChild(tdName);
+                tr.appendChild(tdVal);
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('results-area').classList.remove('hidden');
+        }
+    </script>
+
+</body>
+</html>

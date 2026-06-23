@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PS Discovery via NSGA-II</title>
+    <link rel="stylesheet" href="PS_style.css">
+    <style>
+        .metric-btn {
+            background-color: #bdc3c7;
+            color: #2c3e50; margin: 5px; padding: 8px 15px; font-size: 0.9em; border-radius: 20px;
+        }
+        .metric-btn.active {
+            background-color: #27ae60; color: white; box-shadow: 0 0 5px rgba(39, 174, 96, 0.5);
+        }
+        .ps-card {
+            background: #fff; border-left: 5px solid #2980b9; padding: 15px; margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-radius: 5px;
+        }
+        .ps-string { font-family: monospace; font-size: 1.2em; font-weight: bold; letter-spacing: 2px;}
+        .ps-details { margin-top: 10px; font-size: 0.9em; color: #555; }
+        .descriptor-area {
+            background: #fdfdfd; border: 1px dashed #ccc; padding: 10px; margin-top: 10px; display: none;
+        }
+        .descriptor-pill {
+            display: inline-block; background: #8e44ad; color: white; padding: 5px 10px;
+            border-radius: 12px; font-size: 0.85em; margin: 3px;
+        }
+        .action-row { margin-top: 10px; }
+        .small-btn { padding: 6px 12px; font-size: 0.9em; margin-top: 0; background-color: #d35400;}
+        .small-btn:hover { background-color: #e67e22;}
+
+        /* Loading Bar Styles */
+        #progress-container {
+            background: #fff; padding: 15px; border-radius: 8px; margin-top: 15px;
+            border: 2px solid #2980b9; display: none; text-align: center;
+        }
+        progress { width: 100%; height: 25px; margin-top: 10px; }
+        progress::-webkit-progress-value { background-color: #27ae60; border-radius: 5px;}
+        progress::-webkit-progress-bar { background-color: #eee; border-radius: 5px;}
+    </style>
+</head>
+<body>
+
+    <h1>Mine Explanatory Patterns (NSGA-II)</h1>
+    <div id="error-banner"></div>
+
+    <div class="settings-group pastel-blue">
+        <h2>1. Upload Context Data</h2>
+        <label>1. Upload PRef (CSV):</label>
+        <input type="file" id="pref-upload" accept=".csv" onchange="loadPRef(event)">
+
+        <label>2. Upload Proxy-Fitness Descriptors (CSV):</label>
+        <input type="file" id="proxy-upload" accept=".csv" onchange="loadProxy(event)">
+
+        <label>3. Upload Linkage Table (CSV) <small>Or generate below</small></label>
+        <input type="file" id="linkage-upload" accept=".csv" onchange="loadLinkage(event)">
+        <button class="small-btn" onclick="autoGenerateLinkage()">Auto-Generate Linkage (Dominance)</button>
+
+        <p><small id="data-status">Status: Waiting for uploads...</small></p>
+    </div>
+
+    <div class="settings-group pastel-purple">
+        <h2>2. Search Parameters & Objectives</h2>
+
+        <label>Search Type:</label>
+        <select id="search-type" onchange="toggleLocalSearchUI()">
+            <option value="global">Any-Pattern (Global Search)</option>
+            <option value="local">Subset-of-Solution (Local Search)</option>
+        </select>
+
+        <div id="local-search-ui" class="hidden" style="margin-top: 10px; background: #fff; padding: 10px; border-radius: 5px;">
+            <label>Target Solution (Comma separated):</label>
+            <input type="text" id="target-solution" placeholder="0, 1, 0, 1...">
+            <button class="small-btn" onclick="findBestInPRef()">Auto-Select Best from PRef</button>
+            <span id="best-fit-display" style="font-weight: bold; margin-left: 10px; color: #27ae60;"></span>
+        </div>
+
+        <label>Evaluation Budget:</label>
+        <input type="number" id="budget" value="5000">
+
+        <label>Population Size:</label>
+        <input type="number" id="pop-size" value="100">
+
+        <h3 style="margin-top:15px;">Objectives to Minimize</h3>
+        <p><small>Click to toggle active objectives. At least one must be selected.</small></p>
+        <div id="objective-toggles">
+            </div>
+    </div>
+
+    <button id="run-btn" onclick="runNSGAII()">Start Mining Patterns</button>
+
+    <div id="progress-container">
+        <h3 style="margin: 0;">Running NSGA-II...</h3>
+        <progress id="nsga-progress" value="0" max="100"></progress>
+        <p id="progress-text" style="margin: 5px 0 0 0; color: #555;">0 / 0 Evaluations</p>
+    </div>
+
+    <div id="results-area" class="settings-group pastel-yellow hidden" style="margin-top: 20px;">
+        <h2>Discovered Partial Solutions (Sorted by Minimax Regret)</h2>
+        <div id="ps-container"></div>
+
+        <button onclick="downloadJSON()" style="background-color: #27ae60; margin-top: 20px;">Download Results (JSON)</button>
+    </div>
+
+    <script src="PS_objectives.js"></script>
+    <script src="PS_find_linkage_table.js"></script>
+    <script src="PS_NSGAII.js"></script>
+
+    <script>
+        let db = null;
+        let proxyData = null;
+        let linkageMatrix = null;
+        let L_size = 0;
+        let searchSpace = [];
+        let finalResults = [];
+
+        const activeObjectives = new Set(['mean_fitness', 'star_count']);
+
+        const availableObjectives = [
+            { id: 'mean_fitness', name: 'Mean Fitness' },
+            { id: 'mwu', name: 'MWU Test' },
+            { id: 'mwu_thresh', name: 'MWU (Thresh)' },
+            { id: 'weighted_var', name: 'Weighted Var' },
+            { id: 'atomicity', name: 'Atomicity' },
+            { id: 'a_plus_i', name: 'Atomicity + Ind' },
+            { id: 'star_count', name: 'Star Count' },
+            { id: 'independence', name: 'Independence' },
+            { id: 'robustness', name: 'Robustness' },
+            { id: 'sample_count', name: 'Sample Count' }
+        ];
+
+        function initUI() {
+            const container = document.getElementById('objective-toggles');
+            availableObjectives.forEach(obj => {
+                let btn = document.createElement('button');
+                btn.className = 'metric-btn' + (activeObjectives.has(obj.id) ? ' active' : '');
+                btn.innerText = obj.name;
+                btn.onclick = () => {
+                    if (activeObjectives.has(obj.id)) {
+                        activeObjectives.delete(obj.id);
+                        btn.classList.remove('active');
+                    } else {
+                        activeObjectives.add(obj.id);
+                        btn.classList.add('active');
+                    }
+                };
+                container.appendChild(btn);
+            });
+        }
+        initUI();
+
+        function showError(msg) {
+            document.getElementById('error-banner').innerText = msg;
+            document.getElementById('error-banner').style.display = 'block';
+        }
+        function hideError() { document.getElementById('error-banner').style.display = 'none'; }
+
+        function updateStatus() {
+            let s = [];
+            if(db) s.push(`PRef (N=${db.N}, L=${db.L})`);
+            if(proxyData) s.push(`Proxies Loaded`);
+            if(linkageMatrix) s.push(`Linkage Ready`);
+            document.getElementById('data-status').innerText = s.length ? "Data: " + s.join(" | ") : "Waiting...";
+        }
+
+        function toggleLocalSearchUI() {
+            const isLocal = document.getElementById('search-type').value === 'local';
+            document.getElementById('local-search-ui').style.display = isLocal ? 'block' : 'none';
+        }
+
+        function loadPRef(e) {
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                const rows = evt.target.result.trim().split('\n');
+                let sols = [], fits = [];
+                searchSpace = [];
+                let fitIdx = rows[0].split(',').findIndex(h => h.toLowerCase().trim() === 'fitness');
+
+                for(let i=1; i<rows.length; i++) {
+                    if(!rows[i].trim()) continue;
+                    let cols = rows[i].split(',').map(Number);
+                    let sol = cols.slice(0, fitIdx);
+                    sols.push(sol);
+                    fits.push(cols[fitIdx]);
+
+                    if (searchSpace.length === 0) searchSpace = new Array(sol.length).fill(0);
+                    for (let j=0; j<sol.length; j++) searchSpace[j] = Math.max(searchSpace[j], sol[j] + 1);
+                }
+                db = new PRefDatabase(sols, fits);
+                L_size = db.L;
+                updateStatus();
+            };
+            reader.readAsText(e.target.files[0]);
+        }
+
+        function loadProxy(e) {
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                const rows = evt.target.result.trim().split('\n');
+                let headers = rows[0].split(',');
+                proxyData = [];
+                for(let i=1; i<rows.length; i++) {
+                    if(!rows[i].trim()) continue;
+                    let cols = rows[i].split(',');
+                    let rowObj = {};
+                    headers.forEach((h, idx) => rowObj[h.trim()] = cols[idx]);
+                    proxyData.push(rowObj);
+                }
+                updateStatus();
+            };
+            reader.readAsText(e.target.files[0]);
+        }
+
+        function loadLinkage(e) {
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                const rows = evt.target.result.trim().split('\n');
+                linkageMatrix = [];
+                for(let i=1; i<rows.length; i++) {
+                    if(!rows[i].trim()) continue;
+                    let cols = rows[i].split(',').slice(1).map(x => x === "" || x === "-" ? "" : Number(x));
+                    linkageMatrix.push(cols);
+                }
+                updateStatus();
+            };
+            reader.readAsText(e.target.files[0]);
+        }
+
+        function autoGenerateLinkage() {
+            if (!db) return showError("Load PRef before auto-generating linkage.");
+            try {
+                linkageMatrix = dominance_linkage(db.solutions, db.fitnesses);
+                updateStatus();
+                alert("Linkage table generated successfully via Dominance-based method.");
+            } catch (err) {
+                showError("Linkage error: " + err.message);
+            }
+        }
+
+        function findBestInPRef() {
+            if (!db) return showError("Load PRef first.");
+            let bestIdx = 0;
+            let bestFit = db.fitnesses[0];
+            for (let i = 1; i < db.N; i++) {
+                if (db.fitnesses[i] > bestFit) {
+                    bestFit = db.fitnesses[i];
+                    bestIdx = i;
+                }
+            }
+            document.getElementById('target-solution').value = db.solutions[bestIdx].join(', ');
+            document.getElementById('best-fit-display').innerText = `Fitness: ${bestFit}`;
+        }
+
+        function buildObjectiveFunctions() {
+            let funcs = [];
+            let names = [];
+
+            activeObjectives.forEach(id => {
+                let func;
+                switch(id) {
+                    case 'mean_fitness': func = (ps) => { let {fMatch} = getCache(ps); return obj_mean_fitness(fMatch); }; break;
+                    case 'mwu': func = (ps) => { let {fMatch, fNotMatch} = getCache(ps); return obj_mwu_test(fMatch, fNotMatch); }; break;
+                    case 'mwu_thresh': func = (ps) => { let {fMatch, fNotMatch} = getCache(ps); return obj_mwu_test_threshold(fMatch, fNotMatch); }; break;
+                    case 'weighted_var': func = (ps) => { let {fMatch, fNotMatch} = getCache(ps); return obj_weighted_variance(fMatch, fNotMatch, db.N); }; break;
+                    case 'atomicity': func = (ps) => obj_atomicity(ps, linkageMatrix); break;
+                    case 'a_plus_i': func = (ps) => obj_a_plus_i(ps, linkageMatrix); break;
+                    case 'star_count': func = (ps) => obj_star_count(ps); break;
+                    case 'independence': func = (ps) => obj_independence(ps, linkageMatrix); break;
+                    case 'robustness': func = (ps) => { let {fMatch} = getCache(ps); return obj_robustness(fMatch); }; break;
+                    case 'sample_count': func = (ps) => { let {fMatch} = getCache(ps); return obj_sample_count(fMatch); }; break;
+                }
+                funcs.push(func);
+                names.push(id);
+            });
+            return { funcs, names };
+        }
+
+        let matchCache = new Map();
+        function getCache(ps) {
+            let key = ps.join(',');
+            if (matchCache.has(key)) return matchCache.get(key);
+            let { matchIndices, notMatchIndices } = db.getMatches(ps);
+            let result = db.getFitnessArrays(matchIndices, notMatchIndices);
+            matchCache.set(key, result);
+            return result;
+        }
+
+        // Updated to use async/await for progress bar rendering
+        async function runNSGAII() {
+            hideError();
+            if (!db) return showError("PRef data is missing.");
+            if (activeObjectives.size === 0) return showError("Select at least one objective.");
+
+            let needsLinkage = ['atomicity', 'a_plus_i', 'independence'].some(obj => activeObjectives.has(obj));
+            if (needsLinkage && !linkageMatrix) return showError("Selected objectives require a Linkage Table.");
+
+            const budget = parseInt(document.getElementById('budget').value);
+            const popSize = parseInt(document.getElementById('pop-size').value);
+            const searchType = document.getElementById('search-type').value;
+
+            let operators;
+            if (searchType === 'global') {
+                operators = {
+                    sample: () => OperatorsGlobal.sample(L_size, searchSpace),
+                    mutate: (ps) => OperatorsGlobal.mutate(ps, L_size, searchSpace)
+                };
+            } else {
+                let targetRaw = document.getElementById('target-solution').value;
+                let target = targetRaw.split(',').map(x => parseInt(x.trim()));
+                if (target.length !== L_size || target.some(isNaN)) return showError("Invalid Target Solution.");
+
+                operators = {
+                    sample: () => OperatorsLocal.sample(L_size, target),
+                    mutate: (ps) => OperatorsLocal.mutate(ps, L_size, target)
+                };
+            }
+
+            matchCache.clear();
+            let { funcs, names } = buildObjectiveFunctions();
+
+            const runBtn = document.getElementById('run-btn');
+            const progressContainer = document.getElementById('progress-container');
+            const progressBar = document.getElementById('nsga-progress');
+            const progressText = document.getElementById('progress-text');
+
+            runBtn.disabled = true;
+            document.getElementById('results-area').style.display = 'none';
+            progressContainer.style.display = 'block';
+            progressBar.value = 0;
+            progressBar.max = budget;
+
+            let nsga = new PS_NSGAII(L_size, searchSpace, funcs, budget, popSize, operators);
+
+            // Execute async run with progress callback
+            try {
+                finalResults = await nsga.run((current, total) => {
+                    progressBar.value = current;
+                    progressText.innerText = `${current} / ${total} Evaluations`;
+                });
+
+                finalResults.forEach(ind => {
+                    ind.obj_dict = {};
+                    ind.objectives.forEach((val, idx) => ind.obj_dict[names[idx]] = val);
+                });
+
+                renderResults();
+            } catch (err) {
+                showError("Error during mining: " + err.message);
+            } finally {
+                progressContainer.style.display = 'none';
+                runBtn.disabled = false;
+            }
+        }
+
+        function renderResults() {
+            const container = document.getElementById('ps-container');
+            container.innerHTML = '';
+
+            finalResults.forEach((ind, index) => {
+                let div = document.createElement('div');
+                div.className = 'ps-card';
+
+                let psStr = ind.ps.map(x => x === -1 ? '*' : x).join(' ');
+
+                let details = `<strong>Minimax Worst Rank:</strong> ${ind.worst_rank} (Tie-break: ${ind.sum_ranks})<br>`;
+                for (let key in ind.obj_dict) {
+                    details += `[${key}: ${ind.obj_dict[key].toFixed(4)}] `;
+                }
+
+                div.innerHTML = `
+                    <div class="ps-string">${psStr}</div>
+                    <div class="ps-details">${details}</div>
+                    <div class="action-row">
+                        <button class="small-btn" onclick="fetchDescriptors(${index}, this)">Find Descriptors & Stats</button>
+                    </div>
+                    <div class="descriptor-area" id="desc-${index}"></div>
+                `;
+                container.appendChild(div);
+            });
+            document.getElementById('results-area').style.display = 'block';
+        }
+
+        function fetchDescriptors(index, btnElement) {
+            if (!proxyData) return alert("Proxy-Fitness data not uploaded. Cannot calculate descriptors.");
+
+            let ind = finalResults[index];
+            let area = document.getElementById(`desc-${index}`);
+
+            let {fMatch, fNotMatch} = getCache(ind.ps);
+            let mwu = obj_mwu_test(fMatch, fNotMatch);
+            let meanFit = obj_mean_fitness(fMatch) * -1;
+
+            let html = `<strong>Statistics:</strong><br>
+                        Sample Count: ${fMatch.length} | Mean Fitness: ${meanFit.toFixed(4)} | MWU p-value: ${mwu.toExponential(3)}<br><br>
+                        <strong>Extreme Descriptors (Threshold 10%):</strong><br>`;
+
+            let descriptors = calculate_descriptors(ind.ps, db, proxyData, 0.1, 100);
+            ind.descriptors = descriptors;
+
+            if (descriptors.length === 0) {
+                html += `<em>No descriptors passed the ECDF extremity threshold.</em>`;
+            } else {
+                descriptors.forEach(d => {
+                    html += `<span class="descriptor-pill">${d.name} <br>Avg: ${d.average.toFixed(2)} (P: ${(d.percentile*100).toFixed(1)}%)</span>`;
+                });
+            }
+
+            area.innerHTML = html;
+            area.style.display = 'block';
+            btnElement.style.display = 'none';
+        }
+
+        function downloadJSON() {
+            let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(finalResults, null, 2));
+            let dlAnchorElem = document.createElement('a');
+            dlAnchorElem.setAttribute("href", dataStr);
+            dlAnchorElem.setAttribute("download", "Discovered_Partial_Solutions.json");
+            dlAnchorElem.click();
+        }
+    </script>
+</body>
+</html>

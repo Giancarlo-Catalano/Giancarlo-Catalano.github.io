@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linkage Table Generator</title>
+    <link rel="stylesheet" href="PS_style.css">
+    <style>
+        /* Specific styles for the table output */
+        #table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+            border-radius: 8px;
+            background: white;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+            min-width: 50px;
+        }
+        th {
+            background-color: #f4f4f4;
+            color: #2c3e50;
+        }
+        .download-container { margin-bottom: 20px; }
+        .loading { font-style: italic; color: #7f8c8d; }
+    </style>
+</head>
+<body>
+
+    <h1>Linkage Learning Tables</h1>
+
+    <div id="error-banner"></div>
+
+    <div class="settings-group pastel-blue">
+        <h2>1. Upload PRef Data</h2>
+        <label for="pref-upload">Select PRef CSV file:</label>
+        <input type="file" id="pref-upload" accept=".csv">
+    </div>
+
+    <div class="settings-group pastel-green">
+        <h2>2. Select Linkage Method</h2>
+        <label for="method-select">Method:</label>
+        <select id="method-select">
+            <option value="dominance">Dominance-based Linkage (Cramer's V)</option>
+            <option value="misurvival">Mutual Information of Survival Linkage</option>
+        </select>
+    </div>
+
+    <button id="generate-btn" onclick="processData()">Generate Linkage Table</button>
+
+    <div id="loading-msg" class="loading hidden">Processing data... this might take a moment.</div>
+
+    <div id="results-area" class="hidden">
+        <div class="download-container">
+            <a id="download-link" class="download-link" href="#" download="Linkage_Table.csv">⬇️ Download Linkage Table (CSV)</a>
+        </div>
+        <div id="table-container"></div>
+    </div>
+
+    <script src="PS_find_linkage_table.js"></script>
+
+    <script>
+        let linkageMatrix = [];
+        let headers = [];
+
+        function showError(msg) {
+            const banner = document.getElementById('error-banner');
+            banner.innerText = msg;
+            banner.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('error-banner').style.display = 'none';
+        }
+
+        function processData() {
+            hideError();
+            const fileInput = document.getElementById('pref-upload');
+            const method = document.getElementById('method-select').value;
+
+            if (!fileInput.files.length) {
+                return showError("Please select a CSV file first.");
+            }
+
+            document.getElementById('loading-msg').classList.remove('hidden');
+            document.getElementById('results-area').classList.add('hidden');
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const text = e.target.result;
+                parseCSVAndRun(text, method);
+            };
+            reader.readAsText(file);
+        }
+
+        function parseCSVAndRun(csvText, method) {
+            const rows = csvText.trim().split('\n');
+            if (rows.length < 2) {
+                document.getElementById('loading-msg').classList.add('hidden');
+                return showError("CSV file is empty or invalid.");
+            }
+
+            // Detect headers and columns
+            const firstRow = rows[0].split(',');
+            const fitnessColIdx = firstRow.findIndex(h => h.toLowerCase().trim() === 'fitness');
+
+            if (fitnessColIdx === -1) {
+                document.getElementById('loading-msg').classList.add('hidden');
+                return showError("Could not find a 'fitness' column in the CSV.");
+            }
+
+            headers = firstRow.slice(0, fitnessColIdx).map(h => h.trim());
+            const L = headers.length;
+            const solutions = [];
+            const fitnesses = [];
+
+            // Parse data rows
+            for (let i = 1; i < rows.length; i++) {
+                if (!rows[i].trim()) continue;
+                let cols = rows[i].split(',').map(Number);
+                let sol = cols.slice(0, fitnessColIdx);
+                let fit = cols[fitnessColIdx];
+                solutions.push(sol);
+                fitnesses.push(fit);
+            }
+
+            // Small delay to allow UI to render loading state before heavy lifting
+            setTimeout(() => {
+                try {
+                    if (method === 'dominance') {
+                        linkageMatrix = dominance_linkage(solutions, fitnesses);
+                    } else {
+                        linkageMatrix = misurvival_linkage(solutions, fitnesses);
+                    }
+                    renderResults(linkageMatrix, headers);
+                } catch (err) {
+                    showError("Error computing linkage: " + err.message);
+                } finally {
+                    document.getElementById('loading-msg').classList.add('hidden');
+                }
+            }, 50);
+        }
+
+        function renderResults(matrix, labels) {
+            const container = document.getElementById('table-container');
+            let maxVal = 0;
+
+            // Find max value to normalize background color alpha
+            for (let i = 0; i < matrix.length; i++) {
+                for (let j = 0; j < matrix[i].length; j++) {
+                    if (typeof matrix[i][j] === 'number') {
+                        maxVal = Math.max(maxVal, matrix[i][j]);
+                    }
+                }
+            }
+
+            let html = '<table><thead><tr><th></th>';
+            labels.forEach(l => html += `<th>${l}</th>`);
+            html += '</tr></thead><tbody>';
+
+            for (let i = 0; i < matrix.length; i++) {
+                html += `<tr><th>${labels[i]}</th>`;
+                for (let j = 0; j < matrix[i].length; j++) {
+                    let val = matrix[i][j];
+                    if (val === "") {
+                        html += '<td>-</td>';
+                    } else {
+                        // Colour scaling based on magnitude
+                        let intensity = maxVal > 0 ? (val / maxVal) : 0;
+                        let bgColor = `rgba(52, 152, 219, ${intensity * 0.7})`;
+                        html += `<td style="background-color: ${bgColor}">${val.toFixed(4)}</td>`;
+                    }
+                }
+                html += '</tr>';
+            }
+            html += '</tbody></table>';
+
+            container.innerHTML = html;
+            prepareDownload(matrix, labels);
+            document.getElementById('results-area').classList.remove('hidden');
+            document.querySelector('#results-area .download-container').style.display = 'block';
+        }
+
+        function prepareDownload(matrix, labels) {
+            let csv = ',' + labels.join(',') + '\n';
+            for (let i = 0; i < matrix.length; i++) {
+                csv += labels[i] + ',' + matrix[i].map(v => v === "" ? "" : v).join(',') + '\n';
+            }
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            document.getElementById('download-link').href = url;
+        }
+    </script>
+
+</body>
+</html>

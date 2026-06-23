@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PRef Generator</title>
+    <link rel="stylesheet" href="PS_style.css">
+</head>
+<body>
+
+    <h1>Generate Reference Population (PRef)</h1>
+
+    <div id="error-banner"></div>
+
+    <div class="settings-group pastel-blue">
+        <h2>1. Benchmark Problem</h2>
+        <label for="problem-select">Select Problem:</label>
+        <select id="problem-select" onchange="updateUI()">
+            <option value="royalroad">Royal Road</option>
+            <option value="trapk">Trap-K</option>
+            <option value="graphcolouring">Graph Colouring</option>
+        </select>
+
+        <div id="clique-settings">
+            <label for="clique-count">Clique Count:</label>
+            <input type="number" id="clique-count" min="1" value="10">
+
+            <label for="clique-size">Clique Size:</label>
+            <input type="number" id="clique-size" min="1" value="4">
+        </div>
+
+        <div id="graph-settings" class="hidden">
+            <label for="node-count">Quantity of Nodes:</label>
+            <input type="number" id="node-count" min="1" value="10">
+
+            <label for="colour-count">Quantity of Colours:</label>
+            <input type="number" id="colour-count" min="1" value="3">
+
+            <label for="connections">Connections (Format: (0, 1), (1, 2)):</label>
+            <textarea id="connections" rows="3">(0, 1), (1, 2), (2, 0)</textarea>
+            <small>Note: Node indices should be 0-based, up to (Quantity of Nodes - 1).</small>
+        </div>
+    </div>
+
+    <div class="settings-group pastel-green">
+        <h2>2. Metaheuristic</h2>
+        <label for="meta-select">Select Method:</label>
+        <select id="meta-select" onchange="updateUI()">
+            <option value="random">Random Search</option>
+            <option value="ga">Genetic Algorithm (μ + λ)</option>
+        </select>
+
+        <label for="budget">Evaluation Budget:</label>
+        <input type="number" id="budget" min="1" value="1000">
+
+        <div id="ga-settings" class="hidden">
+            <label for="pop-size">Population Size (μ / λ):</label>
+            <input type="number" id="pop-size" min="2" value="50">
+        </div>
+    </div>
+
+    <button id="generate-btn" onclick="generatePRef()">Generate PRef</button>
+
+    <div id="pref-download-area" class="download-container">
+        <h2>PRef Generated Successfully!</h2>
+        <p id="pref-stats"></p>
+        <a id="download-pref-link" class="download-link" href="#" download="PRef.csv">⬇️ Download PRef (CSV)</a>
+    </div>
+
+    <div id="proxy-section" class="settings-group pastel-purple hidden">
+        <h2>3. Proxy-Fitness Descriptors</h2>
+        <p>Select the proxy-fitness functions to evaluate for the generated PRef:</p>
+        <div class="checkbox-group">
+            <label><input type="checkbox" value="sum" class="proxy-cb"> Total sum of values</label>
+            <label><input type="checkbox" value="zeros" class="proxy-cb"> Quantity of zeros</label>
+            <label><input type="checkbox" value="ones" class="proxy-cb"> Quantity of ones</label>
+            <label><input type="checkbox" value="odd" class="proxy-cb"> Sum of values is odd</label>
+            <label><input type="checkbox" value="seq1" class="proxy-cb"> Longest repeating sequence of 1</label>
+            <label><input type="checkbox" value="seq0" class="proxy-cb"> Longest repeating sequence of 0</label>
+        </div>
+        <button onclick="generateProxyFitness()">Calculate & Download Proxies</button>
+    </div>
+
+    <div id="proxy-download-area" class="download-container">
+        <a id="download-proxy-link" class="download-link" href="#" download="Proxy_Fitness.csv">📥 Download Proxy-Fitness (CSV)</a>
+    </div>
+
+<script>
+    // Global State
+    let PRef = [];
+    let evaluations_done = 0;
+    let max_evaluations = 0;
+    let search_space = [];
+    let current_problem = null;
+
+    // UI Updates and Validation
+    function updateUI() {
+        const problem = document.getElementById('problem-select').value;
+        const meta = document.getElementById('meta-select').value;
+
+        document.getElementById('clique-settings').style.display = (problem === 'royalroad' || problem === 'trapk') ? 'block' : 'none';
+        document.getElementById('graph-settings').style.display = (problem === 'graphcolouring') ? 'block' : 'none';
+
+        document.getElementById('ga-settings').style.display = (meta === 'ga') ? 'block' : 'none';
+        hideError();
+    }
+
+    function showError(msg) {
+        const banner = document.getElementById('error-banner');
+        banner.innerText = msg;
+        banner.style.display = 'block';
+    }
+
+    function hideError() {
+        document.getElementById('error-banner').style.display = 'none';
+    }
+
+    // Attach listeners to clear errors on input change
+    document.querySelectorAll('input, select, textarea').forEach(el => {
+        el.addEventListener('input', hideError);
+    });
+
+    // Core wrapper requested by methodology
+    function evaluate_solution(solution) {
+        if (evaluations_done >= max_evaluations) return null;
+
+        let fitness = current_problem.evaluate(solution);
+        PRef.push({ solution: [...solution], fitness: fitness });
+        evaluations_done++;
+        return fitness;
+    }
+
+    function getRandomValidNumber(cardinality) {
+        return Math.floor(Math.random() * cardinality);
+    }
+
+    function createRandomSolution() {
+        return search_space.map(cardinality => getRandomValidNumber(cardinality));
+    }
+
+    // --- Metaheuristics ---
+
+    function runRandomSearch() {
+        while (evaluations_done < max_evaluations) {
+            evaluate_solution(createRandomSolution());
+        }
+    }
+
+    function runGeneticAlgorithm(popSize) {
+        let population = [];
+
+        // Initialize Population
+        for (let i = 0; i < popSize; i++) {
+            if (evaluations_done >= max_evaluations) break;
+            let sol = createRandomSolution();
+            let fit = evaluate_solution(sol);
+            population.push({ solution: sol, fitness: fit });
+        }
+
+        const L = search_space.length;
+        const mutationProb = 1 / L;
+
+        // Tournament selection (Size 3)
+        const tournament = (pop) => {
+            let best = null;
+            for(let i = 0; i < 3; i++) {
+                let candidate = pop[Math.floor(Math.random() * pop.length)];
+                if (!best || candidate.fitness > best.fitness) best = candidate;
+            }
+            return best.solution;
+        };
+
+        // Evolution loop
+        while (evaluations_done < max_evaluations) {
+            let children = [];
+
+            // Create popSize children
+            for (let i = 0; i < popSize; i++) {
+                if (evaluations_done >= max_evaluations) break;
+
+                let p1 = tournament(population);
+                let p2 = tournament(population);
+                let child = [];
+
+                // Uniform Crossover & Uniform Mutation
+                for (let j = 0; j < L; j++) {
+                    let gene = (Math.random() < 0.5) ? p1[j] : p2[j];
+                    if (Math.random() < mutationProb) {
+                        gene = getRandomValidNumber(search_space[j]);
+                    }
+                    child.push(gene);
+                }
+
+                let fit = evaluate_solution(child);
+                children.push({ solution: child, fitness: fit });
+            }
+
+            // mu + lambda selection (combine and pick top popSize)
+            population = population.concat(children);
+            population.sort((a, b) => b.fitness - a.fitness); // Maximising fitness
+            population = population.slice(0, popSize);
+        }
+    }
+
+    // --- Main Generation Flow ---
+
+    function generatePRef() {
+        hideError();
+        PRef = [];
+        evaluations_done = 0;
+
+        const problemType = document.getElementById('problem-select').value;
+        const metaType = document.getElementById('meta-select').value;
+        max_evaluations = parseInt(document.getElementById('budget').value);
+
+        if (isNaN(max_evaluations) || max_evaluations <= 0) {
+            return showError("Evaluation budget must be a positive integer.");
+        }
+
+        // 1. Setup Problem Definition & Search Space
+        if (problemType === 'royalroad' || problemType === 'trapk') {
+            let cCount = parseInt(document.getElementById('clique-count').value);
+            let cSize = parseInt(document.getElementById('clique-size').value);
+            if (isNaN(cCount) || isNaN(cSize) || cCount <= 0 || cSize <= 0) {
+                return showError("Clique count and size must be positive integers.");
+            }
+
+            let L = cCount * cSize;
+            search_space = new Array(L).fill(2); // Binary
+
+            current_problem = {
+                evaluate: function(sol) {
+                    let fit = 0;
+                    for (let i = 0; i < cCount; i++) {
+                        let clique = sol.slice(i * cSize, (i + 1) * cSize);
+                        let ones = clique.filter(x => x === 1).length;
+
+                        if (problemType === 'royalroad') {
+                            if (ones === cSize) fit += 1;
+                        } else { // Trap-K
+                            if (ones === cSize) fit += cSize;
+                            else fit += (cSize - ones - 1);
+                        }
+                    }
+                    return fit;
+                }
+            };
+        }
+        else if (problemType === 'graphcolouring') {
+            let nNodes = parseInt(document.getElementById('node-count').value);
+            let nColours = parseInt(document.getElementById('colour-count').value);
+            let connText = document.getElementById('connections').value;
+
+            if (isNaN(nNodes) || isNaN(nColours) || nNodes <= 0 || nColours <= 0) {
+                return showError("Nodes and colours must be positive integers.");
+            }
+
+            // Parse edges (maximizing edges with different colors)
+            let edges = [];
+            let regex = /\(\s*(\d+)\s*,\s*(\d+)\s*\)/g;
+            let match;
+            while ((match = regex.exec(connText)) !== null) {
+                let u = parseInt(match[1]);
+                let v = parseInt(match[2]);
+                if (u >= nNodes || v >= nNodes) {
+                    return showError(`Invalid edge (${u}, ${v}): Node indices must be less than ${nNodes}.`);
+                }
+                edges.push([u, v]);
+            }
+
+            search_space = new Array(nNodes).fill(nColours); // Integer encoding
+
+            current_problem = {
+                evaluate: function(sol) {
+                    let fit = 0;
+                    for (let [u, v] of edges) {
+                        if (sol[u] !== sol[v]) fit += 1;
+                    }
+                    return fit;
+                }
+            };
+        }
+
+        // 2. Run Metaheuristic
+        if (metaType === 'random') {
+            runRandomSearch();
+        } else if (metaType === 'ga') {
+            let popSize = parseInt(document.getElementById('pop-size').value);
+            if (isNaN(popSize) || popSize < 2) return showError("Population size must be at least 2.");
+            runGeneticAlgorithm(popSize);
+        }
+
+        // 3. Prepare PRef Download
+        createCSVDownload(PRef, 'PRef.csv', 'download-pref-link');
+        document.getElementById('pref-stats').innerText = `Evaluations completed: ${PRef.length}`;
+        document.getElementById('pref-download-area').style.display = 'block';
+        document.getElementById('proxy-section').classList.remove('hidden');
+    }
+
+    // --- Utility & Proxy Functions ---
+
+    function generateProxyFitness() {
+        hideError();
+        const selectedProxies = Array.from(document.querySelectorAll('.proxy-cb:checked')).map(cb => cb.value);
+
+        if (selectedProxies.length === 0) {
+            return showError("Please select at least one proxy-fitness function.");
+        }
+
+        let proxyData = [];
+
+        for (let entry of PRef) {
+            let sol = entry.solution;
+            let rowObj = {};
+
+            let sum = sol.reduce((a, b) => a + b, 0);
+
+            if (selectedProxies.includes('sum')) rowObj['Total Sum'] = sum;
+            if (selectedProxies.includes('zeros')) rowObj['Zeros'] = sol.filter(x => x === 0).length;
+            if (selectedProxies.includes('ones')) rowObj['Ones'] = sol.filter(x => x === 1).length;
+            if (selectedProxies.includes('odd')) rowObj['Is Sum Odd'] = (sum % 2 !== 0) ? 1 : 0;
+
+            if (selectedProxies.includes('seq1') || selectedProxies.includes('seq0')) {
+                let maxSeq1 = 0, currSeq1 = 0;
+                let maxSeq0 = 0, currSeq0 = 0;
+
+                for(let val of sol) {
+                    if (val === 1) { currSeq1++; maxSeq1 = Math.max(maxSeq1, currSeq1); currSeq0 = 0; }
+                    else if (val === 0) { currSeq0++; maxSeq0 = Math.max(maxSeq0, currSeq0); currSeq1 = 0; }
+                    else { currSeq1 = 0; currSeq0 = 0; } // Non-binary values break the sequence
+                }
+
+                if (selectedProxies.includes('seq1')) rowObj['Max Seq 1'] = maxSeq1;
+                if (selectedProxies.includes('seq0')) rowObj['Max Seq 0'] = maxSeq0;
+            }
+
+            proxyData.push(rowObj);
+        }
+
+        createCSVDownload(proxyData, 'Proxy_Fitness.csv', 'download-proxy-link');
+        document.getElementById('proxy-download-area').style.display = 'block';
+    }
+
+    function createCSVDownload(dataArray, filename, linkId) {
+        if (dataArray.length === 0) return;
+
+        let csvContent = "";
+
+        // Handle PRef specifically vs generic object arrays
+        if (filename === 'PRef.csv') {
+            let varCount = dataArray[0].solution.length;
+            let headers = Array.from({length: varCount}, (_, i) => `var_${i}`).join(',') + ",fitness";
+            csvContent += headers + "\n";
+            dataArray.forEach(row => {
+                csvContent += row.solution.join(',') + "," + row.fitness + "\n";
+            });
+        } else {
+            let headers = Object.keys(dataArray[0]).join(',');
+            csvContent += headers + "\n";
+            dataArray.forEach(row => {
+                csvContent += Object.values(row).join(',') + "\n";
+            });
+        }
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.getElementById(linkId);
+        link.href = url;
+    }
+</script>
+
+</body>
+</html>
