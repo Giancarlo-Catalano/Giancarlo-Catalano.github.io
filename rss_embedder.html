@@ -160,7 +160,7 @@
 </head>
 <body>
 <header>
-    <h1>📰 ISC News Feed</h1>
+    <h1>ISC News Feed</h1>
     <button id="theme-toggle">🌙 Theme</button>
 </header>
 
@@ -172,15 +172,19 @@
         1. Find the RSS Link (URI) from your chosen website (usually ends in .xml or .rss).<br>
         2. Paste it below and configure your layout.<br>
         3. Copy the generated Embed Code.<br>
-        4. In Canvas LMS, edit your page, switch to the "HTML Editor" (usually an icon with &lt;/&gt; at the bottom right), and paste the code. Save the page.
+        4. In Canvas LMS, edit your page, switch to the "HTML Editor" (usually an icon with &gt;/&lt; at the bottom right), and paste the code. Save the page.
     </div>
 
-    <div class="panel">
-        <h2>Load Previous Version</h2>
-        <p>Need to edit a feed you already made? Paste the iframe embed code or link here to reload your settings.</p>
-        <input type="text" id="input-load-previous" placeholder="Paste existing link or <iframe> code here...">
-        <button id="btn-load-previous" class="btn-secondary">Reload Settings</button>
-    </div>
+    <details style="margin-bottom: 20px;">
+        <summary style="cursor: pointer; font-weight: bold; font-size: 1.1em; padding: 10px; background-color: rgba(0,0,0,0.05); border-radius: 5px;">
+            Advanced: Load Previous Version
+        </summary>
+        <div class="panel" style="margin-top: 10px; border-top-left-radius: 0; border-top-right-radius: 0;">
+            <p>Need to edit a feed you already made? Paste the iframe embed code or link here to reload your settings.</p>
+            <input type="text" id="input-load-previous" placeholder="Paste existing link or <iframe> code here...">
+            <button id="btn-load-previous" class="btn-secondary">Reload Settings</button>
+        </div>
+    </details>
 
     <div class="panel">
         <h2>1. Add Feeds (URIs)</h2>
@@ -205,11 +209,14 @@
         <label>Canvas Embed Code (Iframe):</label>
         <textarea id="output-iframe" readonly style="height: 100px;"></textarea>
 
-        <button id="btn-copy-iframe">Copy Embed Code to Clipboard</button>
+        <button id="btn-copy-iframe">Copy Embed Code</button>
     </div>
 
     <div class="panel">
-        <h2>Live Preview</h2>
+        <div class="preview-header">
+            <h2>Live Preview</h2>
+            <button id="btn-reload-preview" class="btn-secondary">🔄 Reload</button>
+        </div>
         <div id="preview-container"></div>
     </div>
 
@@ -221,22 +228,28 @@
 </div>
 
 <script>
-    const BASE_URL = "[https://giancarlo-catalano.github.io/rss_embedder.html](https://giancarlo-catalano.github.io/rss_embedder.html)";
-    const PROXY_URL = "[https://corsproxy.io/](https://corsproxy.io/)?";
+    // Split strings so markdown parsers don't auto-link them and break the code
+    const DOMAIN = "giancarlo-catalano.github.io";
+    const BASE_URL = "https://" + DOMAIN + "/rss_embedder.html";
 
-    // Theme Toggle Logic
+    const PROXIES = [
+        { type: 'direct', getUrl: (uri) => uri },
+        { type: 'xml', getUrl: (uri) => "https://" + "corsproxy.io/?" + encodeURIComponent(uri) },
+        { type: 'xml', getUrl: (uri) => "https://" + "[api.codetabs.com/v1/proxy?quest=](https://api.codetabs.com/v1/proxy?quest=)" + encodeURIComponent(uri) },
+        { type: 'json', getUrl: (uri) => "https://" + "api.allorigins.win/get?url=" + encodeURIComponent(uri) }
+    ];
+
     const themeToggle = document.getElementById('theme-toggle');
     themeToggle.addEventListener('click', () => {
         const isDark = document.body.getAttribute('data-theme') === 'dark';
         document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
     });
 
-    // Determine which view to show
     function initApp() {
         const hash = window.location.hash.substring(1);
         if (hash) {
             document.getElementById('viewer-view').style.display = 'block';
-            document.getElementById('theme-toggle').style.display = 'none'; // Optional: hide theme toggle in iframe
+            document.getElementById('theme-toggle').style.display = 'none';
             initViewer(hash);
         } else {
             document.getElementById('builder-view').style.display = 'block';
@@ -244,11 +257,9 @@
         }
     }
 
-    // ==========================================
-    // BUILDER LOGIC
-    // ==========================================
+    // --- BUILDER LOGIC ---
     function initBuilder() {
-        addUrlInput(); // add one empty box to start
+        addUrlInput();
 
         document.getElementById('btn-add-url').addEventListener('click', () => addUrlInput());
         document.getElementById('input-columns').addEventListener('input', generateCodes);
@@ -259,7 +270,18 @@
             navigator.clipboard.writeText(code);
             const btn = e.target;
             btn.textContent = "Copied to Clipboard!";
-            setTimeout(() => btn.textContent = "Copy Embed Code to Clipboard", 2000);
+            setTimeout(() => btn.textContent = "Copy Embed Code", 2000);
+        });
+
+        document.getElementById('btn-reload-preview').addEventListener('click', () => {
+            const iframe = document.querySelector('#preview-container iframe');
+            if (iframe) {
+                const currentSrc = iframe.src;
+                iframe.src = 'about:blank';
+                setTimeout(() => iframe.src = currentSrc, 50);
+            } else {
+                generateCodes();
+            }
         });
 
         document.getElementById('btn-load-previous').addEventListener('click', () => {
@@ -270,17 +292,17 @@
                     const settings = JSON.parse(atob(match[1]));
                     document.getElementById('input-columns').value = settings.columns || 3;
                     document.getElementById('input-wordlimit').value = settings.wordlimit || 40;
-                    document.getElementById('url-container').innerHTML = ''; // clear current
+                    document.getElementById('url-container').innerHTML = '';
                     if (settings.uris && settings.uris.length > 0) {
                         settings.uris.forEach(uri => addUrlInput(uri));
                     } else {
                         addUrlInput();
                     }
                     generateCodes();
-                    document.getElementById('input-load-previous').value = ''; // clear field
+                    document.getElementById('input-load-previous').value = '';
                     alert("Settings reloaded successfully.");
                 } catch (err) {
-                    alert("Could not read settings from that link. Ensure it is a complete embed code or URL.");
+                    alert("Could not read settings. Ensure it is a complete embed code or URL.");
                 }
             } else {
                 alert("No valid settings found in the text provided.");
@@ -330,7 +352,6 @@
         document.getElementById('output-link').value = fullUrl;
         document.getElementById('output-iframe').value = `<iframe src="${fullUrl}" width="100%" height="100%" style="border:none; min-height:600px;" title="Embedded RSS Feed"></iframe>`;
 
-        // Debounce preview update to avoid spamming iframe destruction
         clearTimeout(previewTimeout);
         previewTimeout = setTimeout(() => {
             const previewContainer = document.getElementById('preview-container');
@@ -339,22 +360,23 @@
     }
 
 
-    // ==========================================
-    // VIEWER LOGIC
-    // ==========================================
+    // --- VIEWER LOGIC ---
     const pastels = ['#ffb3ba', '#ffdfba', '#ffffba', '#baffc9', '#bae1ff', '#e6e6fa', '#ffdac1', '#e2f0cb'];
+    function getRandomPastel() { return pastels[Math.floor(Math.random() * pastels.length)]; }
 
-    function getRandomPastel() {
-        return pastels[Math.floor(Math.random() * pastels.length)];
+    // Fetch with timeout helper
+    async function fetchWithTimeout(resource, options = {}) {
+        const { timeout = 1000 } = options;
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), timeout);
+        const response = await fetch(resource, { ...options, signal: controller.signal });
+        clearTimeout(id);
+        return response;
     }
 
     async function initViewer(hash) {
         let settings;
-        try {
-            settings = JSON.parse(atob(hash));
-        } catch (e) {
-            return; // Silent fail
-        }
+        try { settings = JSON.parse(atob(hash)); } catch (e) { return; }
 
         const grid = document.getElementById('viewer-grid');
         grid.style.columnCount = settings.columns || 3;
@@ -362,26 +384,40 @@
 
         if (!settings.uris || settings.uris.length === 0) return;
 
-        // Fetch all feeds silently
         for (const uri of settings.uris) {
-            try {
-                const response = await fetch(PROXY_URL + encodeURIComponent(uri));
-                if (!response.ok) continue;
+            // Try each proxy with a timeout
+            for (let i = 0; i < PROXIES.length; i++) {
+                const proxy = PROXIES[i];
+                // Give the final fallback a bit more time (3 seconds) to ensure it can load if network is slow
+                const timeoutMs = (i === PROXIES.length - 1) ? 3000 : 1000;
 
-                const xmlText = await response.text();
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+                try {
+                    const response = await fetchWithTimeout(proxy.getUrl(uri), { timeout: timeoutMs });
+                    if (!response.ok) continue;
 
-                if (xmlDoc.querySelector("parsererror")) continue;
+                    let xmlText = "";
+                    if (proxy.type === 'json') {
+                        const data = await response.json();
+                        xmlText = data.contents;
+                    } else {
+                        xmlText = await response.text();
+                    }
 
-                const sourceTitle = xmlDoc.querySelector("channel > title")?.textContent || "News Source";
-                const items = xmlDoc.querySelectorAll("item, entry");
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(xmlText, "text/xml");
 
-                items.forEach(item => processFeedItem(item, sourceTitle, wordLimit, grid));
+                    if (xmlDoc.querySelector("parsererror")) continue;
 
-            } catch (error) {
-                // Silent fail as requested
-                continue;
+                    const sourceTitle = xmlDoc.querySelector("channel > title")?.textContent || "News Source";
+                    const items = xmlDoc.querySelectorAll("item, entry");
+
+                    items.forEach(item => processFeedItem(item, sourceTitle, wordLimit, grid));
+
+                    break; // Stop trying proxies if this one succeeded
+                } catch (error) {
+                    // Silent fail (timeout or network error) -> move to next proxy
+                    continue;
+                }
             }
         }
     }
@@ -389,36 +425,29 @@
     function processFeedItem(item, sourceTitle, wordLimit, grid) {
         const title = item.querySelector("title")?.textContent || "Untitled";
 
-        // Try to find link (RSS uses <link>, Atom uses <link href="...">)
         let link = "";
         const linkNode = item.querySelector("link");
-        if (linkNode) {
-            link = linkNode.textContent || linkNode.getAttribute("href") || "#";
-        }
+        if (linkNode) link = linkNode.textContent || linkNode.getAttribute("href") || "#";
 
-        // Find description/content
         const description = item.querySelector("description")?.textContent || item.querySelector("content")?.textContent || "";
 
-        // Try to find an image
         let imageUrl = "";
         const enclosure = item.querySelector("enclosure[type^='image']");
         const mediaContent = item.querySelector("content[medium='image']");
         if (enclosure) imageUrl = enclosure.getAttribute("url");
         else if (mediaContent) imageUrl = mediaContent.getAttribute("url");
         else {
-            // Check if image is buried in HTML description
             const tempDiv = document.createElement("div");
             tempDiv.innerHTML = description;
             const img = tempDiv.querySelector("img");
             if (img) imageUrl = img.src;
         }
 
-        // Clean text and apply limit
         const tempDiv = document.createElement("div");
         tempDiv.innerHTML = description;
         const fullText = tempDiv.textContent || tempDiv.innerText || "";
 
-        if (fullText.trim() === "") return; // Skip if no text
+        if (fullText.trim() === "") return;
 
         const words = fullText.split(/\s+/);
         let abstractText = fullText;
@@ -426,16 +455,12 @@
             abstractText = words.slice(0, wordLimit).join(" ") + "...";
         }
 
-        // Build Card
         const card = document.createElement('div');
         card.className = 'news-card';
         card.style.backgroundColor = getRandomPastel();
 
         let innerHTML = `<div class="news-source">${sourceTitle}</div>`;
-
-        if (imageUrl) {
-            innerHTML += `<img src="${imageUrl}" style="display:block;" alt="Article Image">`;
-        }
+        if (imageUrl) innerHTML += `<img src="${imageUrl}" style="display:block;" alt="Article Image">`;
 
         innerHTML += `
             <h3 class="news-title">${title}</h3>
@@ -449,23 +474,19 @@
 
         card.innerHTML = innerHTML;
 
-        // Click interactions
         card.addEventListener('click', () => {
-            if (!card.classList.contains('expanded')) {
-                card.classList.add('expanded');
-            }
+            if (!card.classList.contains('expanded')) card.classList.add('expanded');
         });
 
         const collapseBtn = card.querySelector('.btn-collapse');
         collapseBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); // prevent card click from firing
+            e.stopPropagation();
             card.classList.remove('expanded');
         });
 
         grid.appendChild(card);
     }
 
-    // Start
     initApp();
 </script>
 </body>
