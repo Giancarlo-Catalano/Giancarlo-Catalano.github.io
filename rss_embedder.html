@@ -3,30 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ISC RSS Feed Builder</title>
+    <title>ISC RSS Embedder</title>
     <style>
         :root {
             --primary-dark-green: #006938;
             --primary-light-green: #76b72a;
-            --secondary-dark-blue: #003A3D;
-            --secondary-magenta: #511535;
-
             --bg-colour: #ffffff;
-            --text-colour: #222222;
-            --card-bg: #f2f2f2;
+            --text-colour: #000000;
+            --card-text-colour: #222222;
             --border-colour: #cccccc;
-            --focus-outline: #76b72a;
         }
 
         [data-theme="dark"] {
-            --bg-colour: #1a1a1a;
-            --text-colour: #f0f0f0;
-            --card-bg: #2d2d2d;
-            --border-colour: #555555;
-            --focus-outline: #006938;
-            --primary-dark-green: #76b72a;
-            --primary-light-green: #006938;
-            --secondary-dark-blue: #4db8ff;
+            --bg-colour: #121212;
+            --text-colour: #ffffff;
         }
 
         body {
@@ -37,14 +27,6 @@
             padding: 20px;
             transition: background-color 0.3s, color 0.3s;
             font-size: 110%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 900px;
         }
 
         header {
@@ -56,48 +38,7 @@
             margin-bottom: 20px;
         }
 
-        h1 { color: var(--secondary-dark-blue); margin: 0; }
-        h2 { color: var(--secondary-magenta); margin-top: 0;}
-
-        .panel {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-colour);
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        label {
-            display: block;
-            font-weight: bold;
-            margin-bottom: 5px;
-            margin-top: 15px;
-        }
-
-        input[type="text"], input[type="number"] {
-            width: 100%;
-            padding: 10px;
-            box-sizing: border-box;
-            border: 1px solid var(--border-colour);
-            border-radius: 4px;
-            font-size: 1em;
-            background-color: var(--bg-colour);
-            color: var(--text-colour);
-        }
-
-        input:focus {
-            outline: 3px solid var(--focus-outline);
-        }
-
-        .url-list {
-            margin-top: 10px;
-        }
-
-        .url-item {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 10px;
-        }
+        h1, h2 { margin: 0; }
 
         button {
             background-color: var(--primary-dark-green);
@@ -109,386 +50,498 @@
             font-size: 1em;
             font-weight: bold;
         }
-
         button:hover { background-color: var(--primary-light-green); }
+        .btn-secondary { background-color: #444; }
 
-        .btn-remove { background-color: var(--secondary-magenta); }
-        .btn-remove:hover { background-color: #802254; }
-
-        .btn-secondary {
-            background-color: var(--secondary-dark-blue);
+        /* Builder Mode Styles */
+        #builder-view { max-width: 900px; margin: 0 auto; display: none; }
+        .panel {
+            background-color: rgba(128, 128, 128, 0.1);
+            border: 1px solid var(--border-colour);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
         }
-
-        textarea {
+        .instruction-box {
+            background-color: rgba(118, 183, 42, 0.1);
+            border-left: 5px solid var(--primary-light-green);
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        input[type="text"], input[type="number"], textarea {
             width: 100%;
-            height: 80px;
             padding: 10px;
+            margin-top: 5px;
+            margin-bottom: 15px;
             box-sizing: border-box;
             border: 1px solid var(--border-colour);
             border-radius: 4px;
             font-size: 1em;
-            font-family: monospace;
-            background-color: var(--bg-colour);
-            color: var(--text-colour);
-            margin-bottom: 10px;
+        }
+        .url-item { display: flex; gap: 10px; margin-bottom: 10px; }
+        .url-item input { margin-bottom: 0; }
+        .btn-remove { background-color: #cc0000; }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
         }
 
-        iframe {
+        iframe.preview-frame {
             width: 100%;
-            height: 500px;
+            height: 600px;
             border: 2px dashed var(--border-colour);
             border-radius: 8px;
             background-color: var(--bg-colour);
         }
 
-        .info-box {
-            background-color: #e6f2ff;
-            color: #003366;
-            padding: 15px;
-            border-left: 5px solid #0066cc;
-            border-radius: 4px;
-            margin-bottom: 20px;
+        footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 0.9em;
+            color: gray;
         }
 
-        [data-theme="dark"] .info-box {
-            background-color: #002244;
-            color: #cce6ff;
-            border-color: #3399ff;
+        /* Viewer Mode Styles */
+        #viewer-view { display: none; }
+
+        .masonry-grid {
+            column-gap: 20px;
         }
+
+        .news-card {
+            break-inside: avoid;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            color: var(--card-text-colour);
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.2s;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .news-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.2); }
+
+        .news-card img {
+            max-width: 100%;
+            height: auto;
+            max-height: 250px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: none;
+            box-sizing: border-box;
+        }
+
+        .news-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 8px;
+            margin-top: 0;
+        }
+
+        .news-source {
+            font-size: 0.8em;
+            text-transform: uppercase;
+            font-weight: bold;
+            color: rgba(0,0,0,0.6);
+            margin-bottom: 10px;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            padding-bottom: 5px;
+        }
+
+        .news-abstract { font-size: 0.95em; line-height: 1.4; }
+        .news-full { display: none; font-size: 0.95em; line-height: 1.4; }
+
+        .card-footer {
+            margin-top: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .read-more-link {
+            display: inline-block;
+            background-color: rgba(0,0,0,0.1);
+            padding: 5px 10px;
+            border-radius: 4px;
+            text-decoration: none;
+            color: var(--card-text-colour);
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        .read-more-link:hover { background-color: rgba(0,0,0,0.2); }
+
+        .btn-collapse {
+            display: none;
+            background-color: transparent;
+            color: var(--card-text-colour);
+            border: 1px solid rgba(0,0,0,0.3);
+            font-size: 0.8em;
+            padding: 5px 10px;
+        }
+
+        .news-card.expanded { cursor: default; }
+        .news-card.expanded .news-abstract { display: none; }
+        .news-card.expanded .news-full { display: block; }
+        .news-card.expanded .btn-collapse { display: inline-block; }
 
     </style>
 </head>
 <body>
 
-<header>
-    <h1>ISC News Feed</h1>
-    <button id="theme-toggle">🌙 Theme</button>
-</header>
+    <header id="main-header">
+        <h1>ISC News Feed</h1>
+        <button id="theme-toggle">🌙 Toggle Theme</button>
+    </header>
 
-<div id="builder-view">
-    <div class="instruction-box">
-        <strong>Instructions for Teachers</strong><br>
-        RSS feeds act like a subscription to a website. They allow you to pull the latest announcements, articles, or news from external websites directly into your Canvas modules.<br><br>
-        <strong>How to use this tool:</strong><br>
-        1. Find the RSS Link (URI) from your chosen website (usually ends in .xml or .rss).<br>
-        2. Paste it below and configure your layout.<br>
-        3. Copy the generated Embed Code.<br>
-        4. In Canvas LMS, edit your page, switch to the "HTML Editor" (usually an icon with ... at the bottom right), and paste the code. Save the page.
-    </div>
-
-    <details style="margin-bottom: 20px;">
-        <summary style="cursor: pointer; font-weight: bold; font-size: 1.1em; padding: 10px; background-color: rgba(0,0,0,0.05); border-radius: 5px;">
-            Advanced: Load Previous Version
-        </summary>
-        <div class="panel" style="margin-top: 10px; border-top-left-radius: 0; border-top-right-radius: 0;">
-            <p>Need to edit a feed you already made? Paste the iframe embed code or link here to reload your settings.</p>
-            <input type="text" id="input-load-previous" placeholder="Paste existing link or <iframe> code here...">
-            <button id="btn-load-previous" class="btn-secondary">Reload Settings</button>
+    <div id="builder-view">
+        <div class="instruction-box">
+            <strong>Instructions for Teachers</strong><br>
+            RSS feeds act like a subscription to a website. They allow you to pull the latest announcements, articles, or news from external websites directly into your Canvas modules.<br><br>
+            <strong>How to use this tool:</strong><br>
+            1. Find the RSS Link (URI) from your chosen website (usually ends in .xml or .rss).<br>
+            2. Paste it below and configure your layout.<br>
+            3. Copy the generated Embed Code.<br>
+            4. In Canvas LMS, edit your page, switch to the "HTML Editor" (usually an icon with &lt;/&gt; at the bottom right), and paste the code. Save the page.
         </div>
-    </details>
 
-    <div class="panel">
-        <h2>1. Add Feeds (URIs)</h2>
-        <div id="url-container"></div>
-        <button id="btn-add-url">Add Feed Link</button>
-    </div>
+        <details style="margin-bottom: 20px;">
+            <summary style="cursor: pointer; font-weight: bold; font-size: 1.1em; padding: 10px; background-color: rgba(0,0,0,0.05); border-radius: 5px;">
+                Advanced: Load Previous Version
+            </summary>
+            <div class="panel" style="margin-top: 10px; border-top-left-radius: 0; border-top-right-radius: 0;">
+                <p>Need to edit a feed you already made? Paste the iframe embed code or link here to reload your settings.</p>
+                <input type="text" id="input-load-previous" placeholder="Paste existing link or &lt;iframe&gt; code here...">
+                <button id="btn-load-previous" class="btn-secondary">Reload Settings</button>
+            </div>
+        </details>
 
-    <div class="panel">
-        <h2>2. Layout Settings</h2>
-        <label>Number of Columns (Grid width):</label>
-        <input type="number" id="input-columns" min="1" max="5" value="3">
-
-        <label>Abstract Word Limit:</label>
-        <input type="number" id="input-wordlimit" min="10" max="200" value="40">
-    </div>
-
-    <div class="panel">
-        <h2>3. Your Code</h2>
-        <label>Direct Link:</label>
-        <input type="text" id="output-link" readonly>
-
-        <label>Canvas Embed Code (Iframe):</label>
-        <textarea id="output-iframe" readonly style="height: 100px;"></textarea>
-
-        <button id="btn-copy-iframe">Copy Embed Code</button>
-    </div>
-
-    <div class="panel">
-        <div class="preview-header">
-            <h2>Live Preview</h2>
-            <button id="btn-reload-preview" class="btn-secondary">🔄 Reload</button>
+        <div class="panel">
+            <h2>1. Add Feeds (URIs)</h2>
+            <div id="url-container"></div>
+            <button id="btn-add-url">Add Feed Link</button>
         </div>
-        <div id="preview-container"></div>
+
+        <div class="panel">
+            <h2>2. Layout Settings</h2>
+            <label>Number of Columns (Grid width):</label>
+            <input type="number" id="input-columns" min="1" max="5" value="3">
+
+            <label>Abstract Word Limit:</label>
+            <input type="number" id="input-wordlimit" min="10" max="200" value="40">
+        </div>
+
+        <div class="panel">
+            <h2>3. Your Code</h2>
+            <label>Direct Link:</label>
+            <input type="text" id="output-link" readonly>
+
+            <label>Canvas Embed Code (Iframe):</label>
+            <textarea id="output-iframe" readonly style="height: 100px;"></textarea>
+
+            <button id="btn-copy-iframe">Copy Embed Code</button>
+        </div>
+
+        <div class="panel">
+            <div class="preview-header">
+                <h2>Live Preview</h2>
+                <button id="btn-reload-preview" class="btn-secondary">Reload View</button>
+            </div>
+            <div id="preview-container"></div>
+        </div>
+
+        <footer>Made by Giancarlo Catalano for ISC</footer>
     </div>
 
-    <footer>Made by Giancarlo Catalano for ISC</footer>
-</div>
+    <div id="viewer-view">
+        <div id="viewer-grid" class="masonry-grid"></div>
+    </div>
 
-<div id="viewer-view">
-    <div id="viewer-grid" class="masonry-grid"></div>
-</div>
+    <script>
+        // Severed strings prevent aggressive markdown auto-linking in chat interfaces
+        const protocol = 'h' + 't' + 't' + 'p' + 's' + ':' + '/' + '/';
+        const DOMAIN = "giancarlo-catalano.github.io";
+        const BASE_URL = protocol + DOMAIN + "/rss_embedder.html";
 
-<script>
-    // Split strings so markdown parsers don't auto-link them and break the code
-    const DOMAIN = "giancarlo-catalano.github.io";
-    const BASE_URL = "https://" + DOMAIN + "/rss_embedder.html";
+        const PROXIES = [
+            { type: 'direct', getUrl: (uri) => uri },
+            { type: 'xml', getUrl: (uri) => protocol + "corsproxy.io/?" + encodeURIComponent(uri) },
+            { type: 'xml', getUrl: (uri) => protocol + "api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(uri) },
+            { type: 'json', getUrl: (uri) => protocol + "api.allorigins.win/get?url=" + encodeURIComponent(uri) }
+        ];
 
-    const PROXIES = [
-        { type: 'direct', getUrl: (uri) => uri },
-        { type: 'xml', getUrl: (uri) => "https://" + "corsproxy.io/?" + encodeURIComponent(uri) },
-        { type: 'xml', getUrl: (uri) => "https://" + "[api.codetabs.com/v1/proxy?quest=](https://api.codetabs.com/v1/proxy?quest=)" + encodeURIComponent(uri) },
-        { type: 'json', getUrl: (uri) => "https://" + "api.allorigins.win/get?url=" + encodeURIComponent(uri) }
-    ];
+        // Pastel colour array
+        const pastels = ['#ffb3ba', '#ffdfba', '#ffffba', '#baffc9', '#bae1ff', '#e6e6fa', '#ffdac1', '#e2f0cb'];
 
-    const themeToggle = document.getElementById('theme-toggle');
-    themeToggle.addEventListener('click', () => {
-        const isDark = document.body.getAttribute('data-theme') === 'dark';
-        document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
-    });
-
-    function initApp() {
-        const hash = window.location.hash.substring(1);
-        if (hash) {
-            document.getElementById('viewer-view').style.display = 'block';
-            document.getElementById('theme-toggle').style.display = 'none';
-            initViewer(hash);
-        } else {
-            document.getElementById('builder-view').style.display = 'block';
-            initBuilder();
-        }
-    }
-
-    // --- BUILDER LOGIC ---
-    function initBuilder() {
-        addUrlInput();
-
-        document.getElementById('btn-add-url').addEventListener('click', () => addUrlInput());
-        document.getElementById('input-columns').addEventListener('input', generateCodes);
-        document.getElementById('input-wordlimit').addEventListener('input', generateCodes);
-
-        document.getElementById('btn-copy-iframe').addEventListener('click', (e) => {
-            const code = document.getElementById('output-iframe').value;
-            navigator.clipboard.writeText(code);
-            const btn = e.target;
-            btn.textContent = "Copied to Clipboard!";
-            setTimeout(() => btn.textContent = "Copy Embed Code", 2000);
-        });
-
-        document.getElementById('btn-reload-preview').addEventListener('click', () => {
-            const iframe = document.querySelector('#preview-container iframe');
-            if (iframe) {
-                const currentSrc = iframe.src;
-                iframe.src = 'about:blank';
-                setTimeout(() => iframe.src = currentSrc, 50);
-            } else {
-                generateCodes();
+        // Heuristic function to generate a consistent colour based on the URI string
+        function getColourForUri(uri) {
+            let hash = 0;
+            for (let i = 0; i < uri.length; i++) {
+                hash = uri.charCodeAt(i) + ((hash << 5) - hash);
             }
+            const index = Math.abs(hash) % pastels.length;
+            return pastels[index];
+        }
+
+        const themeToggle = document.getElementById('theme-toggle');
+        themeToggle.addEventListener('click', () => {
+            const isDark = document.body.getAttribute('data-theme') === 'dark';
+            document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
         });
 
-        document.getElementById('btn-load-previous').addEventListener('click', () => {
-            const inputVal = document.getElementById('input-load-previous').value;
-            const match = inputVal.match(/#([A-Za-z0-9+/=]+)/);
-            if (match && match[1]) {
-                try {
-                    const settings = JSON.parse(atob(match[1]));
-                    document.getElementById('input-columns').value = settings.columns || 3;
-                    document.getElementById('input-wordlimit').value = settings.wordlimit || 40;
-                    document.getElementById('url-container').innerHTML = '';
-                    if (settings.uris && settings.uris.length > 0) {
-                        settings.uris.forEach(uri => addUrlInput(uri));
-                    } else {
-                        addUrlInput();
-                    }
+        // Initialize display based on URL parameters
+        function initApp() {
+            const hash = window.location.hash.substring(1);
+            const builderView = document.getElementById('builder-view');
+            const viewerView = document.getElementById('viewer-view');
+            const mainHeader = document.getElementById('main-header');
+
+            if (hash) {
+                // Viewer Mode - explicitly hide builder and header
+                builderView.style.display = 'none';
+                mainHeader.style.display = 'none';
+                viewerView.style.display = 'block';
+                initViewer(hash);
+            } else {
+                // Builder Mode - explicitly hide viewer
+                viewerView.style.display = 'none';
+                builderView.style.display = 'block';
+                initBuilder();
+            }
+        }
+
+        // --- BUILDER LOGIC ---
+        function initBuilder() {
+            addUrlInput();
+
+            document.getElementById('btn-add-url').addEventListener('click', () => addUrlInput());
+            document.getElementById('input-columns').addEventListener('input', generateCodes);
+            document.getElementById('input-wordlimit').addEventListener('input', generateCodes);
+
+            document.getElementById('btn-copy-iframe').addEventListener('click', (e) => {
+                const code = document.getElementById('output-iframe').value;
+                navigator.clipboard.writeText(code);
+                const btn = e.target;
+                btn.textContent = "Copied to Clipboard!";
+                setTimeout(() => btn.textContent = "Copy Embed Code", 2000);
+            });
+
+            document.getElementById('btn-reload-preview').addEventListener('click', () => {
+                const iframe = document.querySelector('#preview-container iframe');
+                if (iframe) {
+                    const currentSrc = iframe.src;
+                    iframe.src = 'about:blank';
+                    setTimeout(() => iframe.src = currentSrc, 50);
+                } else {
                     generateCodes();
-                    document.getElementById('input-load-previous').value = '';
-                    alert("Settings reloaded successfully.");
-                } catch (err) {
-                    alert("Could not read settings. Ensure it is a complete embed code or URL.");
                 }
-            } else {
-                alert("No valid settings found in the text provided.");
-            }
-        });
-    }
+            });
 
-    function addUrlInput(value = '') {
-        const container = document.getElementById('url-container');
-        const div = document.createElement('div');
-        div.className = 'url-item';
-
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.placeholder = '[https://example.com/rss.xml](https://example.com/rss.xml)';
-        input.value = value;
-        input.addEventListener('input', generateCodes);
-
-        const btn = document.createElement('button');
-        btn.textContent = 'Remove';
-        btn.className = 'btn-remove';
-        btn.onclick = () => { div.remove(); generateCodes(); };
-
-        div.appendChild(input);
-        div.appendChild(btn);
-        container.appendChild(div);
-    }
-
-    let previewTimeout;
-    function generateCodes() {
-        const inputs = document.querySelectorAll('#url-container input[type="text"]');
-        const uris = Array.from(inputs).map(i => i.value.trim()).filter(v => v !== '');
-        const columns = document.getElementById('input-columns').value;
-        const wordlimit = document.getElementById('input-wordlimit').value;
-
-        if (uris.length === 0) {
-            document.getElementById('output-link').value = '';
-            document.getElementById('output-iframe').value = '';
-            document.getElementById('preview-container').innerHTML = '';
-            return;
-        }
-
-        const data = { uris, columns, wordlimit };
-        const hash = btoa(JSON.stringify(data));
-        const fullUrl = `${BASE_URL}#${hash}`;
-
-        document.getElementById('output-link').value = fullUrl;
-        document.getElementById('output-iframe').value = `<iframe src="${fullUrl}" width="100%" height="100%" style="border:none; min-height:600px;" title="Embedded RSS Feed"></iframe>`;
-
-        clearTimeout(previewTimeout);
-        previewTimeout = setTimeout(() => {
-            const previewContainer = document.getElementById('preview-container');
-            previewContainer.innerHTML = `<iframe class="preview-frame" src="${fullUrl}"></iframe>`;
-        }, 800);
-    }
-
-
-    // --- VIEWER LOGIC ---
-    const pastels = ['#ffb3ba', '#ffdfba', '#ffffba', '#baffc9', '#bae1ff', '#e6e6fa', '#ffdac1', '#e2f0cb'];
-    function getRandomPastel() { return pastels[Math.floor(Math.random() * pastels.length)]; }
-
-    // Fetch with timeout helper
-    async function fetchWithTimeout(resource, options = {}) {
-        const { timeout = 1000 } = options;
-        const controller = new AbortController();
-        const id = setTimeout(() => controller.abort(), timeout);
-        const response = await fetch(resource, { ...options, signal: controller.signal });
-        clearTimeout(id);
-        return response;
-    }
-
-    async function initViewer(hash) {
-        let settings;
-        try { settings = JSON.parse(atob(hash)); } catch (e) { return; }
-
-        const grid = document.getElementById('viewer-grid');
-        grid.style.columnCount = settings.columns || 3;
-        const wordLimit = parseInt(settings.wordlimit) || 40;
-
-        if (!settings.uris || settings.uris.length === 0) return;
-
-        for (const uri of settings.uris) {
-            // Try each proxy with a timeout
-            for (let i = 0; i < PROXIES.length; i++) {
-                const proxy = PROXIES[i];
-                // Give the final fallback a bit more time (3 seconds) to ensure it can load if network is slow
-                const timeoutMs = (i === PROXIES.length - 1) ? 3000 : 1000;
-
-                try {
-                    const response = await fetchWithTimeout(proxy.getUrl(uri), { timeout: timeoutMs });
-                    if (!response.ok) continue;
-
-                    let xmlText = "";
-                    if (proxy.type === 'json') {
-                        const data = await response.json();
-                        xmlText = data.contents;
-                    } else {
-                        xmlText = await response.text();
+            document.getElementById('btn-load-previous').addEventListener('click', () => {
+                const inputVal = document.getElementById('input-load-previous').value;
+                const match = inputVal.match(/#([A-Za-z0-9+/=]+)/);
+                if (match && match[1]) {
+                    try {
+                        const settings = JSON.parse(atob(match[1]));
+                        document.getElementById('input-columns').value = settings.columns || 3;
+                        document.getElementById('input-wordlimit').value = settings.wordlimit || 40;
+                        document.getElementById('url-container').innerHTML = '';
+                        if (settings.uris && settings.uris.length > 0) {
+                            settings.uris.forEach(uri => addUrlInput(uri));
+                        } else {
+                            addUrlInput();
+                        }
+                        generateCodes();
+                        document.getElementById('input-load-previous').value = '';
+                        alert("Settings reloaded successfully.");
+                    } catch (err) {
+                        alert("Could not read settings. Ensure it is a complete embed code or URL.");
                     }
+                } else {
+                    alert("No valid settings found in the text provided.");
+                }
+            });
+        }
 
-                    const parser = new DOMParser();
-                    const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+        function addUrlInput(value = '') {
+            const container = document.getElementById('url-container');
+            const div = document.createElement('div');
+            div.className = 'url-item';
 
-                    if (xmlDoc.querySelector("parsererror")) continue;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = protocol + 'example.com/rss.xml';
+            input.value = value;
+            input.addEventListener('input', generateCodes);
 
-                    const sourceTitle = xmlDoc.querySelector("channel > title")?.textContent || "News Source";
-                    const items = xmlDoc.querySelectorAll("item, entry");
+            const btn = document.createElement('button');
+            btn.textContent = 'Remove';
+            btn.className = 'btn-remove';
+            btn.onclick = () => { div.remove(); generateCodes(); };
 
-                    items.forEach(item => processFeedItem(item, sourceTitle, wordLimit, grid));
+            div.appendChild(input);
+            div.appendChild(btn);
+            container.appendChild(div);
+        }
 
-                    break; // Stop trying proxies if this one succeeded
-                } catch (error) {
-                    // Silent fail (timeout or network error) -> move to next proxy
-                    continue;
+        let previewTimeout;
+        function generateCodes() {
+            const inputs = document.querySelectorAll('#url-container input[type="text"]');
+            const uris = Array.from(inputs).map(i => i.value.trim()).filter(v => v !== '');
+            const columns = document.getElementById('input-columns').value;
+            const wordlimit = document.getElementById('input-wordlimit').value;
+
+            if (uris.length === 0) {
+                document.getElementById('output-link').value = '';
+                document.getElementById('output-iframe').value = '';
+                document.getElementById('preview-container').innerHTML = '';
+                return;
+            }
+
+            const data = { uris, columns, wordlimit };
+            const hash = btoa(JSON.stringify(data));
+            const fullUrl = `${BASE_URL}#${hash}`;
+
+            document.getElementById('output-link').value = fullUrl;
+            document.getElementById('output-iframe').value = `<iframe src="${fullUrl}" width="100%" height="100%" style="border:none; min-height:600px;" title="Embedded RSS Feed"></iframe>`;
+
+            clearTimeout(previewTimeout);
+            previewTimeout = setTimeout(() => {
+                const previewContainer = document.getElementById('preview-container');
+                previewContainer.innerHTML = `<iframe class="preview-frame" src="${fullUrl}"></iframe>`;
+            }, 800);
+        }
+
+        // --- VIEWER LOGIC ---
+        async function fetchWithTimeout(resource, options = {}) {
+            const { timeout = 1000 } = options;
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeout);
+            const response = await fetch(resource, { ...options, signal: controller.signal });
+            clearTimeout(id);
+            return response;
+        }
+
+        async function initViewer(hash) {
+            let settings;
+            try { settings = JSON.parse(atob(hash)); } catch (e) { return; }
+
+            const grid = document.getElementById('viewer-grid');
+            grid.style.columnCount = settings.columns || 3;
+            const wordLimit = parseInt(settings.wordlimit) || 40;
+
+            if (!settings.uris || settings.uris.length === 0) return;
+
+            for (const uri of settings.uris) {
+                // Get the consistent colour for this specific news source
+                const cardColour = getColourForUri(uri);
+
+                for (let i = 0; i < PROXIES.length; i++) {
+                    const proxy = PROXIES[i];
+                    const timeoutMs = (i === PROXIES.length - 1) ? 3000 : 1000;
+
+                    try {
+                        const response = await fetchWithTimeout(proxy.getUrl(uri), { timeout: timeoutMs });
+                        if (!response.ok) continue;
+
+                        let xmlText = "";
+                        if (proxy.type === 'json') {
+                            const data = await response.json();
+                            xmlText = data.contents;
+                        } else {
+                            xmlText = await response.text();
+                        }
+
+                        const parser = new DOMParser();
+                        const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+
+                        if (xmlDoc.querySelector("parsererror")) continue;
+
+                        const sourceTitle = xmlDoc.querySelector("channel > title")?.textContent || "News Source";
+                        const items = xmlDoc.querySelectorAll("item, entry");
+
+                        items.forEach(item => processFeedItem(item, sourceTitle, wordLimit, grid, cardColour));
+
+                        break;
+                    } catch (error) {
+                        continue;
+                    }
                 }
             }
         }
-    }
 
-    function processFeedItem(item, sourceTitle, wordLimit, grid) {
-        const title = item.querySelector("title")?.textContent || "Untitled";
+        function processFeedItem(item, sourceTitle, wordLimit, grid, cardColour) {
+            const title = item.querySelector("title")?.textContent || "Untitled";
 
-        let link = "";
-        const linkNode = item.querySelector("link");
-        if (linkNode) link = linkNode.textContent || linkNode.getAttribute("href") || "#";
+            let link = "";
+            const linkNode = item.querySelector("link");
+            if (linkNode) link = linkNode.textContent || linkNode.getAttribute("href") || "#";
 
-        const description = item.querySelector("description")?.textContent || item.querySelector("content")?.textContent || "";
+            const description = item.querySelector("description")?.textContent || item.querySelector("content")?.textContent || "";
 
-        let imageUrl = "";
-        const enclosure = item.querySelector("enclosure[type^='image']");
-        const mediaContent = item.querySelector("content[medium='image']");
-        if (enclosure) imageUrl = enclosure.getAttribute("url");
-        else if (mediaContent) imageUrl = mediaContent.getAttribute("url");
-        else {
+            let imageUrl = "";
+            const enclosure = item.querySelector("enclosure[type^='image']");
+            const mediaContent = item.querySelector("content[medium='image']");
+            if (enclosure) imageUrl = enclosure.getAttribute("url");
+            else if (mediaContent) imageUrl = mediaContent.getAttribute("url");
+            else {
+                const tempDiv = document.createElement("div");
+                tempDiv.innerHTML = description;
+                const img = tempDiv.querySelector("img");
+                if (img) imageUrl = img.src;
+            }
+
             const tempDiv = document.createElement("div");
             tempDiv.innerHTML = description;
-            const img = tempDiv.querySelector("img");
-            if (img) imageUrl = img.src;
+            const fullText = tempDiv.textContent || tempDiv.innerText || "";
+
+            if (fullText.trim() === "") return;
+
+            const words = fullText.split(/\s+/);
+            let abstractText = fullText;
+            if (words.length > wordLimit) {
+                abstractText = words.slice(0, wordLimit).join(" ") + "...";
+            }
+
+            const card = document.createElement('div');
+            card.className = 'news-card';
+            card.style.backgroundColor = cardColour;
+
+            let innerHTML = `<div class="news-source">${sourceTitle}</div>`;
+            if (imageUrl) innerHTML += `<img src="${imageUrl}" style="display:block;" alt="Article Image">`;
+
+            innerHTML += `
+                <h3 class="news-title">${title}</h3>
+                <div class="news-abstract">${abstractText}</div>
+                <div class="news-full">${fullText}</div>
+                <div class="card-footer">
+                    <a href="${link}" class="read-more-link" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">Read Article</a>
+                    <button class="btn-collapse">Collapse</button>
+                </div>
+            `;
+
+            card.innerHTML = innerHTML;
+
+            card.addEventListener('click', () => {
+                if (!card.classList.contains('expanded')) card.classList.add('expanded');
+            });
+
+            const collapseBtn = card.querySelector('.btn-collapse');
+            collapseBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                card.classList.remove('expanded');
+            });
+
+            grid.appendChild(card);
         }
 
-        const tempDiv = document.createElement("div");
-        tempDiv.innerHTML = description;
-        const fullText = tempDiv.textContent || tempDiv.innerText || "";
-
-        if (fullText.trim() === "") return;
-
-        const words = fullText.split(/\s+/);
-        let abstractText = fullText;
-        if (words.length > wordLimit) {
-            abstractText = words.slice(0, wordLimit).join(" ") + "...";
-        }
-
-        const card = document.createElement('div');
-        card.className = 'news-card';
-        card.style.backgroundColor = getRandomPastel();
-
-        let innerHTML = `<div class="news-source">${sourceTitle}</div>`;
-        if (imageUrl) innerHTML += `<img src="${imageUrl}" style="display:block;" alt="Article Image">`;
-
-        innerHTML += `
-            <h3 class="news-title">${title}</h3>
-            <div class="news-abstract">${abstractText}</div>
-            <div class="news-full">${fullText}</div>
-            <div class="card-footer">
-                <a href="${link}" class="read-more-link" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">Read Article</a>
-                <button class="btn-collapse">Collapse</button>
-            </div>
-        `;
-
-        card.innerHTML = innerHTML;
-
-        card.addEventListener('click', () => {
-            if (!card.classList.contains('expanded')) card.classList.add('expanded');
-        });
-
-        const collapseBtn = card.querySelector('.btn-collapse');
-        collapseBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            card.classList.remove('expanded');
-        });
-
-        grid.appendChild(card);
-    }
-
-    initApp();
-</script>
+        initApp();
+    </script>
 </body>
 </html>
