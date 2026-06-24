@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISC RSS Feed Builder</title>
+    <style>
+        :root {
+            --primary-dark-green: #006938;
+            --primary-light-green: #76b72a;
+            --secondary-dark-blue: #003A3D;
+            --secondary-magenta: #511535;
+
+            --bg-colour: #ffffff;
+            --text-colour: #222222;
+            --card-bg: #f2f2f2;
+            --border-colour: #cccccc;
+            --focus-outline: #76b72a;
+        }
+
+        [data-theme="dark"] {
+            --bg-colour: #1a1a1a;
+            --text-colour: #f0f0f0;
+            --card-bg: #2d2d2d;
+            --border-colour: #555555;
+            --focus-outline: #006938;
+            --primary-dark-green: #76b72a;
+            --primary-light-green: #006938;
+            --secondary-dark-blue: #4db8ff;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: var(--bg-colour);
+            color: var(--text-colour);
+            margin: 0;
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
+            font-size: 110%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid var(--primary-dark-green);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        h1 { color: var(--secondary-dark-blue); margin: 0; }
+        h2 { color: var(--secondary-magenta); margin-top: 0;}
+
+        .panel {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-colour);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            margin-top: 15px;
+        }
+
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid var(--border-colour);
+            border-radius: 4px;
+            font-size: 1em;
+            background-color: var(--bg-colour);
+            color: var(--text-colour);
+        }
+
+        input:focus {
+            outline: 3px solid var(--focus-outline);
+        }
+
+        .url-list {
+            margin-top: 10px;
+        }
+
+        .url-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            background-color: var(--primary-dark-green);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+        }
+
+        button:hover { background-color: var(--primary-light-green); }
+
+        .btn-remove { background-color: var(--secondary-magenta); }
+        .btn-remove:hover { background-color: #802254; }
+
+        .btn-secondary {
+            background-color: var(--secondary-dark-blue);
+        }
+
+        textarea {
+            width: 100%;
+            height: 80px;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid var(--border-colour);
+            border-radius: 4px;
+            font-size: 1em;
+            font-family: monospace;
+            background-color: var(--bg-colour);
+            color: var(--text-colour);
+            margin-bottom: 10px;
+        }
+
+        iframe {
+            width: 100%;
+            height: 500px;
+            border: 2px dashed var(--border-colour);
+            border-radius: 8px;
+            background-color: var(--bg-colour);
+        }
+
+        .info-box {
+            background-color: #e6f2ff;
+            color: #003366;
+            padding: 15px;
+            border-left: 5px solid #0066cc;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        [data-theme="dark"] .info-box {
+            background-color: #002244;
+            color: #cce6ff;
+            border-color: #3399ff;
+        }
+
+    </style>
+</head>
+<body>
+<header>
+    <h1>📰 ISC News Feed</h1>
+    <button id="theme-toggle">🌙 Theme</button>
+</header>
+
+<div id="builder-view">
+    <div class="instruction-box">
+        <strong>Instructions for Teachers</strong><br>
+        RSS feeds act like a subscription to a website. They allow you to pull the latest announcements, articles, or news from external websites directly into your Canvas modules.<br><br>
+        <strong>How to use this tool:</strong><br>
+        1. Find the RSS Link (URI) from your chosen website (usually ends in .xml or .rss).<br>
+        2. Paste it below and configure your layout.<br>
+        3. Copy the generated Embed Code.<br>
+        4. In Canvas LMS, edit your page, switch to the "HTML Editor" (usually an icon with &lt;/&gt; at the bottom right), and paste the code. Save the page.
+    </div>
+
+    <div class="panel">
+        <h2>Load Previous Version</h2>
+        <p>Need to edit a feed you already made? Paste the iframe embed code or link here to reload your settings.</p>
+        <input type="text" id="input-load-previous" placeholder="Paste existing link or <iframe> code here...">
+        <button id="btn-load-previous" class="btn-secondary">Reload Settings</button>
+    </div>
+
+    <div class="panel">
+        <h2>1. Add Feeds (URIs)</h2>
+        <div id="url-container"></div>
+        <button id="btn-add-url">Add Feed Link</button>
+    </div>
+
+    <div class="panel">
+        <h2>2. Layout Settings</h2>
+        <label>Number of Columns (Grid width):</label>
+        <input type="number" id="input-columns" min="1" max="5" value="3">
+
+        <label>Abstract Word Limit:</label>
+        <input type="number" id="input-wordlimit" min="10" max="200" value="40">
+    </div>
+
+    <div class="panel">
+        <h2>3. Your Code</h2>
+        <label>Direct Link:</label>
+        <input type="text" id="output-link" readonly>
+
+        <label>Canvas Embed Code (Iframe):</label>
+        <textarea id="output-iframe" readonly style="height: 100px;"></textarea>
+
+        <button id="btn-copy-iframe">Copy Embed Code to Clipboard</button>
+    </div>
+
+    <div class="panel">
+        <h2>Live Preview</h2>
+        <div id="preview-container"></div>
+    </div>
+
+    <footer>Made by Giancarlo Catalano for ISC</footer>
+</div>
+
+<div id="viewer-view">
+    <div id="viewer-grid" class="masonry-grid"></div>
+</div>
+
+<script>
+    const BASE_URL = "[https://giancarlo-catalano.github.io/rss_embedder.html](https://giancarlo-catalano.github.io/rss_embedder.html)";
+    const PROXY_URL = "[https://corsproxy.io/](https://corsproxy.io/)?";
+
+    // Theme Toggle Logic
+    const themeToggle = document.getElementById('theme-toggle');
+    themeToggle.addEventListener('click', () => {
+        const isDark = document.body.getAttribute('data-theme') === 'dark';
+        document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    });
+
+    // Determine which view to show
+    function initApp() {
+        const hash = window.location.hash.substring(1);
+        if (hash) {
+            document.getElementById('viewer-view').style.display = 'block';
+            document.getElementById('theme-toggle').style.display = 'none'; // Optional: hide theme toggle in iframe
+            initViewer(hash);
+        } else {
+            document.getElementById('builder-view').style.display = 'block';
+            initBuilder();
+        }
+    }
+
+    // ==========================================
+    // BUILDER LOGIC
+    // ==========================================
+    function initBuilder() {
+        addUrlInput(); // add one empty box to start
+
+        document.getElementById('btn-add-url').addEventListener('click', () => addUrlInput());
+        document.getElementById('input-columns').addEventListener('input', generateCodes);
+        document.getElementById('input-wordlimit').addEventListener('input', generateCodes);
+
+        document.getElementById('btn-copy-iframe').addEventListener('click', (e) => {
+            const code = document.getElementById('output-iframe').value;
+            navigator.clipboard.writeText(code);
+            const btn = e.target;
+            btn.textContent = "Copied to Clipboard!";
+            setTimeout(() => btn.textContent = "Copy Embed Code to Clipboard", 2000);
+        });
+
+        document.getElementById('btn-load-previous').addEventListener('click', () => {
+            const inputVal = document.getElementById('input-load-previous').value;
+            const match = inputVal.match(/#([A-Za-z0-9+/=]+)/);
+            if (match && match[1]) {
+                try {
+                    const settings = JSON.parse(atob(match[1]));
+                    document.getElementById('input-columns').value = settings.columns || 3;
+                    document.getElementById('input-wordlimit').value = settings.wordlimit || 40;
+                    document.getElementById('url-container').innerHTML = ''; // clear current
+                    if (settings.uris && settings.uris.length > 0) {
+                        settings.uris.forEach(uri => addUrlInput(uri));
+                    } else {
+                        addUrlInput();
+                    }
+                    generateCodes();
+                    document.getElementById('input-load-previous').value = ''; // clear field
+                    alert("Settings reloaded successfully.");
+                } catch (err) {
+                    alert("Could not read settings from that link. Ensure it is a complete embed code or URL.");
+                }
+            } else {
+                alert("No valid settings found in the text provided.");
+            }
+        });
+    }
+
+    function addUrlInput(value = '') {
+        const container = document.getElementById('url-container');
+        const div = document.createElement('div');
+        div.className = 'url-item';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = '[https://example.com/rss.xml](https://example.com/rss.xml)';
+        input.value = value;
+        input.addEventListener('input', generateCodes);
+
+        const btn = document.createElement('button');
+        btn.textContent = 'Remove';
+        btn.className = 'btn-remove';
+        btn.onclick = () => { div.remove(); generateCodes(); };
+
+        div.appendChild(input);
+        div.appendChild(btn);
+        container.appendChild(div);
+    }
+
+    let previewTimeout;
+    function generateCodes() {
+        const inputs = document.querySelectorAll('#url-container input[type="text"]');
+        const uris = Array.from(inputs).map(i => i.value.trim()).filter(v => v !== '');
+        const columns = document.getElementById('input-columns').value;
+        const wordlimit = document.getElementById('input-wordlimit').value;
+
+        if (uris.length === 0) {
+            document.getElementById('output-link').value = '';
+            document.getElementById('output-iframe').value = '';
+            document.getElementById('preview-container').innerHTML = '';
+            return;
+        }
+
+        const data = { uris, columns, wordlimit };
+        const hash = btoa(JSON.stringify(data));
+        const fullUrl = `${BASE_URL}#${hash}`;
+
+        document.getElementById('output-link').value = fullUrl;
+        document.getElementById('output-iframe').value = `<iframe src="${fullUrl}" width="100%" height="100%" style="border:none; min-height:600px;" title="Embedded RSS Feed"></iframe>`;
+
+        // Debounce preview update to avoid spamming iframe destruction
+        clearTimeout(previewTimeout);
+        previewTimeout = setTimeout(() => {
+            const previewContainer = document.getElementById('preview-container');
+            previewContainer.innerHTML = `<iframe class="preview-frame" src="${fullUrl}"></iframe>`;
+        }, 800);
+    }
+
+
+    // ==========================================
+    // VIEWER LOGIC
+    // ==========================================
+    const pastels = ['#ffb3ba', '#ffdfba', '#ffffba', '#baffc9', '#bae1ff', '#e6e6fa', '#ffdac1', '#e2f0cb'];
+
+    function getRandomPastel() {
+        return pastels[Math.floor(Math.random() * pastels.length)];
+    }
+
+    async function initViewer(hash) {
+        let settings;
+        try {
+            settings = JSON.parse(atob(hash));
+        } catch (e) {
+            return; // Silent fail
+        }
+
+        const grid = document.getElementById('viewer-grid');
+        grid.style.columnCount = settings.columns || 3;
+        const wordLimit = parseInt(settings.wordlimit) || 40;
+
+        if (!settings.uris || settings.uris.length === 0) return;
+
+        // Fetch all feeds silently
+        for (const uri of settings.uris) {
+            try {
+                const response = await fetch(PROXY_URL + encodeURIComponent(uri));
+                if (!response.ok) continue;
+
+                const xmlText = await response.text();
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+
+                if (xmlDoc.querySelector("parsererror")) continue;
+
+                const sourceTitle = xmlDoc.querySelector("channel > title")?.textContent || "News Source";
+                const items = xmlDoc.querySelectorAll("item, entry");
+
+                items.forEach(item => processFeedItem(item, sourceTitle, wordLimit, grid));
+
+            } catch (error) {
+                // Silent fail as requested
+                continue;
+            }
+        }
+    }
+
+    function processFeedItem(item, sourceTitle, wordLimit, grid) {
+        const title = item.querySelector("title")?.textContent || "Untitled";
+
+        // Try to find link (RSS uses <link>, Atom uses <link href="...">)
+        let link = "";
+        const linkNode = item.querySelector("link");
+        if (linkNode) {
+            link = linkNode.textContent || linkNode.getAttribute("href") || "#";
+        }
+
+        // Find description/content
+        const description = item.querySelector("description")?.textContent || item.querySelector("content")?.textContent || "";
+
+        // Try to find an image
+        let imageUrl = "";
+        const enclosure = item.querySelector("enclosure[type^='image']");
+        const mediaContent = item.querySelector("content[medium='image']");
+        if (enclosure) imageUrl = enclosure.getAttribute("url");
+        else if (mediaContent) imageUrl = mediaContent.getAttribute("url");
+        else {
+            // Check if image is buried in HTML description
+            const tempDiv = document.createElement("div");
+            tempDiv.innerHTML = description;
+            const img = tempDiv.querySelector("img");
+            if (img) imageUrl = img.src;
+        }
+
+        // Clean text and apply limit
+        const tempDiv = document.createElement("div");
+        tempDiv.innerHTML = description;
+        const fullText = tempDiv.textContent || tempDiv.innerText || "";
+
+        if (fullText.trim() === "") return; // Skip if no text
+
+        const words = fullText.split(/\s+/);
+        let abstractText = fullText;
+        if (words.length > wordLimit) {
+            abstractText = words.slice(0, wordLimit).join(" ") + "...";
+        }
+
+        // Build Card
+        const card = document.createElement('div');
+        card.className = 'news-card';
+        card.style.backgroundColor = getRandomPastel();
+
+        let innerHTML = `<div class="news-source">${sourceTitle}</div>`;
+
+        if (imageUrl) {
+            innerHTML += `<img src="${imageUrl}" style="display:block;" alt="Article Image">`;
+        }
+
+        innerHTML += `
+            <h3 class="news-title">${title}</h3>
+            <div class="news-abstract">${abstractText}</div>
+            <div class="news-full">${fullText}</div>
+            <div class="card-footer">
+                <a href="${link}" class="read-more-link" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">Read Article</a>
+                <button class="btn-collapse">Collapse</button>
+            </div>
+        `;
+
+        card.innerHTML = innerHTML;
+
+        // Click interactions
+        card.addEventListener('click', () => {
+            if (!card.classList.contains('expanded')) {
+                card.classList.add('expanded');
+            }
+        });
+
+        const collapseBtn = card.querySelector('.btn-collapse');
+        collapseBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // prevent card click from firing
+            card.classList.remove('expanded');
+        });
+
+        grid.appendChild(card);
+    }
+
+    // Start
+    initApp();
+</script>
+</body>
+</html>
