@@ -142,150 +142,197 @@
 <body>
 
     <header>
-        <h1>📰 Latest Updates</h1>
-        <button id="theme-toggle" aria-label="Toggle Night Mode">🌙 Night Mode</button>
-    </header>
+    <h1>📰 Latest Updates</h1>
+    <button id="theme-toggle" aria-label="Toggle Night Mode">🌙 Night Mode</button>
+</header>
 
-    <div id="error-message" class="error-box"></div>
+<div id="error-message" class="error-box"></div>
 
-    <div id="loading-indicator" class="loading">⏳ Fetching the news... please wait.</div>
+<div id="loading-indicator" class="loading">⏳ Fetching the news and testing connections... please wait.</div>
 
-    <div id="feed-container"></div>
+<div id="feed-container"></div>
 
-    <script>
-        // 1. Setup Theme Toggle
-        const themeToggle = document.getElementById('theme-toggle');
-        themeToggle.addEventListener('click', () => {
-            const isDark = document.body.getAttribute('data-theme') === 'dark';
-            document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
-            themeToggle.textContent = isDark ? '🌙 Night Mode' : '☀️ Day Mode';
-        });
+<script>
+    // Setup Theme Toggle
+    const themeToggle = document.getElementById('theme-toggle');
+    themeToggle.addEventListener('click', () => {
+        const isDark = document.body.getAttribute('data-theme') === 'dark';
+        document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+        themeToggle.textContent = isDark ? '🌙 Night Mode' : '☀️ Day Mode';
+    });
 
-        // 2. Helper to show errors in simple terms
-        function showError(message, fixHint) {
-            const errorBox = document.getElementById('error-message');
-            errorBox.innerHTML = `<strong>⚠️ Oops, something went wrong!</strong><br>${message}<br><em>How to fix: ${fixHint}</em>`;
-            errorBox.style.display = 'block';
-            document.getElementById('loading-indicator').style.display = 'none';
+    // Helper to show errors
+    function showError(message, fixHint) {
+        const errorBox = document.getElementById('error-message');
+        errorBox.innerHTML = `<strong>⚠️ Oops, something went wrong!</strong><br>${message}<br><em>How to fix: ${fixHint}</em>`;
+        errorBox.style.display = 'block';
+        document.getElementById('loading-indicator').style.display = 'none';
+    }
+
+    // List of different services to try bypassing the browser security block
+    const workarounds = [
+        {
+            name: 'CodeTabs',
+            type: 'xml',
+            getUrl: (uri) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(uri)}`
+        },
+        {
+            name: 'CorsProxy.io',
+            type: 'xml',
+            getUrl: (uri) => `https://corsproxy.io/?${encodeURIComponent(uri)}`
+        },
+        {
+            name: 'AllOrigins',
+            type: 'json',
+            getUrl: (uri) => `https://api.allorigins.win/get?url=${encodeURIComponent(uri)}`
         }
+    ];
 
-        // 3. Main function to read settings and build feeds
-        async function loadFeeds() {
-            const hash = window.location.hash.substring(1); // Remove the '#'
+    // Function to try fetching a single feed using all available workarounds
+    async function fetchFeedSafely(uri) {
+        let lastErrorMessage = "";
 
-            if (!hash) {
-                showError("There are no news feeds linked to this page.", "Please use the Builder page to create a proper link, then try opening it again.");
-                return;
-            }
-
-            let settings;
+        for (const proxy of workarounds) {
             try {
-                // Decode the "secret text" (Base64) back into understandable data (JSON)
-                const decodedText = atob(hash);
-                settings = JSON.parse(decodedText);
-            } catch (e) {
-                showError("The link looks broken or unreadable.", "Go back to the Builder page and generate a fresh link.");
-                return;
-            }
+                const response = await fetch(proxy.getUrl(uri));
 
-            // Set up columns
-            const container = document.getElementById('feed-container');
-            const columns = parseInt(settings.columns) || 1;
-            container.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
-
-            const uris = settings.uris || [];
-            const wordLimit = parseInt(settings.wordlimit) || 50;
-
-            if (uris.length === 0) {
-                showError("No websites were added to this link.", "Go back to the Builder and add at least one web address (URI).");
-                return;
-            }
-
-            // Loop through each feed link and fetch it
-            for (const uri of uris) {
-                const columnDiv = document.createElement('div');
-                columnDiv.className = 'feed-column';
-                columnDiv.innerHTML = `<h2 class="feed-title">⏳ Loading feed...</h2>`;
-                container.appendChild(columnDiv);
-
-                try {
-                    // We use a friendly middleman (proxy) to bypass security rules that prevent reading other sites directly
-                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(uri)}`;
-                    const response = await fetch(proxyUrl);
-
-                    if (!response.ok) throw new Error("Could not connect to the feed.");
-
-                    const data = await response.json();
-
-                    // Convert the text into an understandable XML document
-                    const parser = new DOMParser();
-                    const xmlDoc = parser.parseFromString(data.contents, "text/xml");
-
-                    // Check for parsing errors
-                    if (xmlDoc.querySelector("parsererror")) {
-                        throw new Error("The website didn't provide a valid feed format.");
-                    }
-
-                    // Get title of the feed
-                    const channelTitle = xmlDoc.querySelector("channel > title")?.textContent || "News Feed";
-                    let htmlContent = `<h2 class="feed-title">📰 ${channelTitle}</h2>`;
-
-                    // Get individual news items (articles)
-                    const items = xmlDoc.querySelectorAll("item");
-                    if (items.length === 0) {
-                        htmlContent += `<p>No news found here right now.</p>`;
-                    }
-
-                    items.forEach(item => {
-                        const title = item.querySelector("title")?.textContent || "Untitled";
-                        const link = item.querySelector("link")?.textContent || "#";
-                        const pubDate = item.querySelector("pubDate")?.textContent || "";
-
-                        // Some feeds use <description>, some use <content:encoded>. We check both.
-                        let description = item.querySelector("description")?.textContent || "";
-
-                        // Clean up hidden HTML formatting inside the text so it doesn't break our page
-                        const tempDiv = document.createElement("div");
-                        tempDiv.innerHTML = description;
-                        let cleanText = tempDiv.textContent || tempDiv.innerText || "";
-
-                        // Cut the text short if it's too long
-                        let words = cleanText.split(/\s+/);
-                        if (words.length > wordLimit) {
-                            cleanText = words.slice(0, wordLimit).join(" ") + "...";
-                        }
-
-                        // Format date nicely if possible
-                        let niceDate = pubDate;
-                        if (pubDate) {
-                            try { niceDate = new Date(pubDate).toLocaleDateString('en-GB'); } catch(e){}
-                        }
-
-                        htmlContent += `
-                            <div class="feed-item">
-                                <a href="${link}" target="_blank" rel="noopener noreferrer">${title}</a>
-                                <span class="feed-date">📅 ${niceDate}</span>
-                                <p>${cleanText}</p>
-                            </div>
-                        `;
-                    });
-
-                    columnDiv.innerHTML = htmlContent;
-
-                } catch (error) {
-                    columnDiv.innerHTML = `
-                        <h2 class="feed-title">⚠️ Feed Error</h2>
-                        <p style="color: var(--error-text);">We couldn't load this feed.</p>
-                        <p style="font-size: 0.9em;">Link: ${uri}</p>
-                    `;
+                if (!response.ok) {
+                    throw new Error("Connection refused by this service.");
                 }
-            }
 
-            document.getElementById('loading-indicator').style.display = 'none';
+                let xmlText = "";
+                if (proxy.type === 'json') {
+                    // AllOrigins wraps the result in a JSON package
+                    const data = await response.json();
+                    xmlText = data.contents;
+                } else {
+                    // The others give us the raw text directly
+                    xmlText = await response.text();
+                }
+
+                // Convert the text into an XML document
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+
+                // Check if it broke while converting
+                if (xmlDoc.querySelector("parsererror")) {
+                    throw new Error("The website gave us text, but it wasn't a valid feed.");
+                }
+
+                // If we reach here, it worked! Return the document and the name of the service.
+                return { doc: xmlDoc, serviceUsed: proxy.name };
+
+            } catch (error) {
+                // It failed. Remember the error and let the loop try the next service.
+                lastErrorMessage = error.message;
+            }
         }
 
-        // Start loading when page opens
-        loadFeeds();
-    </script>
+        // If the loop finishes and we are here, ALL services failed.
+        throw new Error(`All workarounds failed. Last error: ${lastErrorMessage}`);
+    }
+
+    // Main function to read settings and build feeds
+    async function loadFeeds() {
+        const hash = window.location.hash.substring(1);
+
+        if (!hash) {
+            showError("There are no news feeds linked to this page.", "Please use the Builder page to create a proper link, then try opening it again.");
+            return;
+        }
+
+        let settings;
+        try {
+            const decodedText = atob(hash);
+            settings = JSON.parse(decodedText);
+        } catch (e) {
+            showError("The link looks broken or unreadable.", "Go back to the Builder page and generate a fresh link.");
+            return;
+        }
+
+        const container = document.getElementById('feed-container');
+        const columns = parseInt(settings.columns) || 1;
+        container.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+
+        const uris = settings.uris || [];
+        const wordLimit = parseInt(settings.wordlimit) || 50;
+
+        if (uris.length === 0) {
+            showError("No websites were added to this link.", "Go back to the Builder and add at least one web address (URI).");
+            return;
+        }
+
+        // Process each feed
+        for (const uri of uris) {
+            const columnDiv = document.createElement('div');
+            columnDiv.className = 'feed-column';
+            columnDiv.innerHTML = `<h2 class="feed-title">⏳ Testing connections...</h2>`;
+            container.appendChild(columnDiv);
+
+            try {
+                // Try to fetch using our multi-service setup
+                const result = await fetchFeedSafely(uri);
+                const xmlDoc = result.doc;
+
+                const channelTitle = xmlDoc.querySelector("channel > title")?.textContent || "News Feed";
+
+                // Show title and which service worked
+                let htmlContent = `
+                    <h2 class="feed-title">📰 ${channelTitle}</h2>
+                    <div class="proxy-badge">✅ Connected via ${result.serviceUsed}</div>
+                `;
+
+                const items = xmlDoc.querySelectorAll("item");
+                if (items.length === 0) {
+                    htmlContent += `<p>No news found here right now.</p>`;
+                }
+
+                items.forEach(item => {
+                    const title = item.querySelector("title")?.textContent || "Untitled";
+                    const link = item.querySelector("link")?.textContent || "#";
+                    const pubDate = item.querySelector("pubDate")?.textContent || "";
+
+                    let description = item.querySelector("description")?.textContent || "";
+
+                    const tempDiv = document.createElement("div");
+                    tempDiv.innerHTML = description;
+                    let cleanText = tempDiv.textContent || tempDiv.innerText || "";
+
+                    let words = cleanText.split(/\s+/);
+                    if (words.length > wordLimit) {
+                        cleanText = words.slice(0, wordLimit).join(" ") + "...";
+                    }
+
+                    let niceDate = pubDate;
+                    if (pubDate) {
+                        try { niceDate = new Date(pubDate).toLocaleDateString('en-GB'); } catch(e){}
+                    }
+
+                    htmlContent += `
+                        <div class="feed-item">
+                            <a href="${link}" target="_blank" rel="noopener noreferrer">${title}</a>
+                            <span class="feed-date">📅 ${niceDate}</span>
+                            <p>${cleanText}</p>
+                        </div>
+                    `;
+                });
+
+                columnDiv.innerHTML = htmlContent;
+
+            } catch (error) {
+                columnDiv.innerHTML = `
+                    <h2 class="feed-title">⚠️ Feed Error</h2>
+                    <p style="color: var(--error-text);">We couldn't load this feed, even after trying multiple workarounds.</p>
+                    <p style="font-size: 0.9em;">Link: ${uri}</p>
+                    <p style="font-size: 0.8em; color: gray;">Technical detail: ${error.message}</p>
+                `;
+            }
+        }
+
+        document.getElementById('loading-indicator').style.display = 'none';
+    }
+
+    loadFeeds();
+</script>
 </body>
 </html>
