@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSS Feed Viewer</title>
+    <style>
+        :root {
+            --primary-dark-green: #006938;
+            --primary-light-green: #76b72a;
+            --secondary-dark-blue: #003A3D;
+            --secondary-magenta: #511535;
+
+            --bg-colour: #ffffff;
+            --text-colour: #222222;
+            --card-bg: #f9f9f9;
+            --border-colour: #dddddd;
+            --error-bg: #ffe6e6;
+            --error-text: #cc0000;
+        }
+
+        [data-theme="dark"] {
+            --bg-colour: #1a1a1a;
+            --text-colour: #f0f0f0;
+            --card-bg: #2d2d2d;
+            --border-colour: #444444;
+            --primary-dark-green: #76b72a;
+            --primary-light-green: #006938;
+            --secondary-dark-blue: #4db8ff;
+            --error-bg: #5c0000;
+            --error-text: #ff9999;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: var(--bg-colour);
+            color: var(--text-colour);
+            margin: 0;
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
+            font-size: 110%; /* Slightly larger for readability */
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid var(--primary-dark-green);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.5em;
+            color: var(--secondary-dark-blue);
+        }
+
+        button {
+            background-color: var(--primary-dark-green);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background-color: var(--primary-light-green);
+        }
+
+        .error-box {
+            background-color: var(--error-bg);
+            color: var(--error-text);
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+            border-left: 5px solid var(--error-text);
+        }
+
+        #feed-container {
+            display: grid;
+            gap: 20px;
+            /* Columns are set via JavaScript based on settings */
+            grid-template-columns: 1fr;
+        }
+
+        .feed-column {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-colour);
+            border-radius: 8px;
+            padding: 15px;
+            overflow-y: auto;
+            max-height: 80vh;
+        }
+
+        .feed-title {
+            color: var(--secondary-magenta);
+            border-bottom: 2px solid var(--primary-light-green);
+            padding-bottom: 5px;
+            margin-top: 0;
+        }
+
+        .feed-item {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px dashed var(--border-colour);
+        }
+
+        .feed-item:last-child {
+            border-bottom: none;
+        }
+
+        .feed-item a {
+            color: var(--secondary-dark-blue);
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .feed-item a:hover {
+            text-decoration: underline;
+        }
+
+        .feed-date {
+            font-size: 0.8em;
+            color: gray;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .loading {
+            text-align: center;
+            font-size: 1.2em;
+            color: var(--primary-dark-green);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>📰 Latest Updates</h1>
+        <button id="theme-toggle" aria-label="Toggle Night Mode">🌙 Night Mode</button>
+    </header>
+
+    <div id="error-message" class="error-box"></div>
+
+    <div id="loading-indicator" class="loading">⏳ Fetching the news... please wait.</div>
+
+    <div id="feed-container"></div>
+
+    <script>
+        // 1. Setup Theme Toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        themeToggle.addEventListener('click', () => {
+            const isDark = document.body.getAttribute('data-theme') === 'dark';
+            document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+            themeToggle.textContent = isDark ? '🌙 Night Mode' : '☀️ Day Mode';
+        });
+
+        // 2. Helper to show errors in simple terms
+        function showError(message, fixHint) {
+            const errorBox = document.getElementById('error-message');
+            errorBox.innerHTML = `<strong>⚠️ Oops, something went wrong!</strong><br>${message}<br><em>How to fix: ${fixHint}</em>`;
+            errorBox.style.display = 'block';
+            document.getElementById('loading-indicator').style.display = 'none';
+        }
+
+        // 3. Main function to read settings and build feeds
+        async function loadFeeds() {
+            const hash = window.location.hash.substring(1); // Remove the '#'
+
+            if (!hash) {
+                showError("There are no news feeds linked to this page.", "Please use the Builder page to create a proper link, then try opening it again.");
+                return;
+            }
+
+            let settings;
+            try {
+                // Decode the "secret text" (Base64) back into understandable data (JSON)
+                const decodedText = atob(hash);
+                settings = JSON.parse(decodedText);
+            } catch (e) {
+                showError("The link looks broken or unreadable.", "Go back to the Builder page and generate a fresh link.");
+                return;
+            }
+
+            // Set up columns
+            const container = document.getElementById('feed-container');
+            const columns = parseInt(settings.columns) || 1;
+            container.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+
+            const uris = settings.uris || [];
+            const wordLimit = parseInt(settings.wordlimit) || 50;
+
+            if (uris.length === 0) {
+                showError("No websites were added to this link.", "Go back to the Builder and add at least one web address (URI).");
+                return;
+            }
+
+            // Loop through each feed link and fetch it
+            for (const uri of uris) {
+                const columnDiv = document.createElement('div');
+                columnDiv.className = 'feed-column';
+                columnDiv.innerHTML = `<h2 class="feed-title">⏳ Loading feed...</h2>`;
+                container.appendChild(columnDiv);
+
+                try {
+                    // We use a friendly middleman (proxy) to bypass security rules that prevent reading other sites directly
+                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(uri)}`;
+                    const response = await fetch(proxyUrl);
+
+                    if (!response.ok) throw new Error("Could not connect to the feed.");
+
+                    const data = await response.json();
+
+                    // Convert the text into an understandable XML document
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(data.contents, "text/xml");
+
+                    // Check for parsing errors
+                    if (xmlDoc.querySelector("parsererror")) {
+                        throw new Error("The website didn't provide a valid feed format.");
+                    }
+
+                    // Get title of the feed
+                    const channelTitle = xmlDoc.querySelector("channel > title")?.textContent || "News Feed";
+                    let htmlContent = `<h2 class="feed-title">📰 ${channelTitle}</h2>`;
+
+                    // Get individual news items (articles)
+                    const items = xmlDoc.querySelectorAll("item");
+                    if (items.length === 0) {
+                        htmlContent += `<p>No news found here right now.</p>`;
+                    }
+
+                    items.forEach(item => {
+                        const title = item.querySelector("title")?.textContent || "Untitled";
+                        const link = item.querySelector("link")?.textContent || "#";
+                        const pubDate = item.querySelector("pubDate")?.textContent || "";
+
+                        // Some feeds use <description>, some use <content:encoded>. We check both.
+                        let description = item.querySelector("description")?.textContent || "";
+
+                        // Clean up hidden HTML formatting inside the text so it doesn't break our page
+                        const tempDiv = document.createElement("div");
+                        tempDiv.innerHTML = description;
+                        let cleanText = tempDiv.textContent || tempDiv.innerText || "";
+
+                        // Cut the text short if it's too long
+                        let words = cleanText.split(/\s+/);
+                        if (words.length > wordLimit) {
+                            cleanText = words.slice(0, wordLimit).join(" ") + "...";
+                        }
+
+                        // Format date nicely if possible
+                        let niceDate = pubDate;
+                        if (pubDate) {
+                            try { niceDate = new Date(pubDate).toLocaleDateString('en-GB'); } catch(e){}
+                        }
+
+                        htmlContent += `
+                            <div class="feed-item">
+                                <a href="${link}" target="_blank" rel="noopener noreferrer">${title}</a>
+                                <span class="feed-date">📅 ${niceDate}</span>
+                                <p>${cleanText}</p>
+                            </div>
+                        `;
+                    });
+
+                    columnDiv.innerHTML = htmlContent;
+
+                } catch (error) {
+                    columnDiv.innerHTML = `
+                        <h2 class="feed-title">⚠️ Feed Error</h2>
+                        <p style="color: var(--error-text);">We couldn't load this feed.</p>
+                        <p style="font-size: 0.9em;">Link: ${uri}</p>
+                    `;
+                }
+            }
+
+            document.getElementById('loading-indicator').style.display = 'none';
+        }
+
+        // Start loading when page opens
+        loadFeeds();
+    </script>
+</body>
+</html>

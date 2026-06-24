@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISC RSS Feed Builder</title>
+    <style>
+        :root {
+            --primary-dark-green: #006938;
+            --primary-light-green: #76b72a;
+            --secondary-dark-blue: #003A3D;
+            --secondary-magenta: #511535;
+
+            --bg-colour: #ffffff;
+            --text-colour: #222222;
+            --card-bg: #f2f2f2;
+            --border-colour: #cccccc;
+            --focus-outline: #76b72a;
+        }
+
+        [data-theme="dark"] {
+            --bg-colour: #1a1a1a;
+            --text-colour: #f0f0f0;
+            --card-bg: #2d2d2d;
+            --border-colour: #555555;
+            --focus-outline: #006938;
+            --primary-dark-green: #76b72a;
+            --primary-light-green: #006938;
+            --secondary-dark-blue: #4db8ff;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: var(--bg-colour);
+            color: var(--text-colour);
+            margin: 0;
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
+            font-size: 110%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid var(--primary-dark-green);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        h1 { color: var(--secondary-dark-blue); margin: 0; }
+        h2 { color: var(--secondary-magenta); margin-top: 0;}
+
+        .panel {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-colour);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            margin-top: 15px;
+        }
+
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid var(--border-colour);
+            border-radius: 4px;
+            font-size: 1em;
+            background-color: var(--bg-colour);
+            color: var(--text-colour);
+        }
+
+        input:focus {
+            outline: 3px solid var(--focus-outline);
+        }
+
+        .url-list {
+            margin-top: 10px;
+        }
+
+        .url-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            background-color: var(--primary-dark-green);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+        }
+
+        button:hover { background-color: var(--primary-light-green); }
+
+        .btn-remove { background-color: var(--secondary-magenta); }
+        .btn-remove:hover { background-color: #802254; }
+
+        .btn-secondary {
+            background-color: var(--secondary-dark-blue);
+        }
+
+        textarea {
+            width: 100%;
+            height: 80px;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid var(--border-colour);
+            border-radius: 4px;
+            font-size: 1em;
+            font-family: monospace;
+            background-color: var(--bg-colour);
+            color: var(--text-colour);
+            margin-bottom: 10px;
+        }
+
+        iframe {
+            width: 100%;
+            height: 500px;
+            border: 2px dashed var(--border-colour);
+            border-radius: 8px;
+            background-color: var(--bg-colour);
+        }
+
+        .info-box {
+            background-color: #e6f2ff;
+            color: #003366;
+            padding: 15px;
+            border-left: 5px solid #0066cc;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        [data-theme="dark"] .info-box {
+            background-color: #002244;
+            color: #cce6ff;
+            border-color: #3399ff;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>🛠️ RSS Link Builder</h1>
+        <button id="theme-toggle">🌙 Night Mode</button>
+    </header>
+
+    <div class="info-box">
+        <strong>👋 Welcome!</strong> Use this page to set up how your news feeds will look. Every time you make a change, a new link will be created automatically. Make sure this page and `viewer.html` are saved in the exact same folder!
+    </div>
+
+    <div class="panel">
+        <h2>1. Add News Feeds</h2>
+        <p>Paste the web addresses (URIs) of the RSS feeds you want to show.</p>
+        <div id="url-container" class="url-list">
+            </div>
+        <button id="btn-add-url">➕ Add Another Feed</button>
+    </div>
+
+    <div class="panel">
+        <h2>2. Appearance Settings</h2>
+        <label for="input-columns">Number of Columns:</label>
+        <input type="number" id="input-columns" min="1" max="5" value="2">
+        <small>How many columns side-by-side? (1 to 5)</small>
+
+        <label for="input-wordlimit">Maximum Word Limit:</label>
+        <input type="number" id="input-wordlimit" min="10" max="500" value="50">
+        <small>Long articles will be cut short to fit nicely on the screen.</small>
+    </div>
+
+    <div class="panel">
+        <h2>3. Your Embeddable Link</h2>
+        <p>Copy this text and use it as your link. It contains all your settings bundled into a secret code.</p>
+        <textarea id="output-link" readonly></textarea>
+
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button id="btn-preview" class="btn-secondary">🔍 Load Preview Below</button>
+            <button id="btn-save-cache">💾 Save Setup to Laptop Memory</button>
+        </div>
+        <small style="display: block; margin-top: 10px;">
+            <em>Note about memory: Saving stores these settings to your specific internet browser on this specific laptop. If you use a different computer, or clear your internet history, your saved setup will disappear!</em>
+        </small>
+    </div>
+
+    <div class="panel">
+        <h2>👁️ Live Preview</h2>
+        <iframe id="preview-frame" src="about:blank" title="RSS Feed Preview"></iframe>
+    </div>
+
+</div>
+
+<script>
+    let hasUnsavedChanges = false;
+
+    // --- 1. Theme Setup ---
+    const themeToggle = document.getElementById('theme-toggle');
+    themeToggle.addEventListener('click', () => {
+        const isDark = document.body.getAttribute('data-theme') === 'dark';
+        document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+        themeToggle.textContent = isDark ? '🌙 Night Mode' : '☀️ Day Mode';
+    });
+
+    // --- 2. Dynamic Inputs ---
+    const urlContainer = document.getElementById('url-container');
+
+    function addUrlInput(value = '') {
+        const div = document.createElement('div');
+        div.className = 'url-item';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = 'e.g. https://feeds.bbci.co.uk/news/rss.xml';
+        input.value = value;
+        input.addEventListener('input', () => {
+            hasUnsavedChanges = true;
+            generateLink();
+        });
+
+        const removeBtn = document.createElement('button');
+        removeBtn.textContent = '🗑️ Remove';
+        removeBtn.className = 'btn-remove';
+        removeBtn.onclick = () => {
+            div.remove();
+            hasUnsavedChanges = true;
+            generateLink();
+        };
+
+        div.appendChild(input);
+        div.appendChild(removeBtn);
+        urlContainer.appendChild(div);
+    }
+
+    document.getElementById('btn-add-url').addEventListener('click', () => {
+        addUrlInput();
+        hasUnsavedChanges = true;
+    });
+
+    // Listen to changes on number inputs
+    document.getElementById('input-columns').addEventListener('input', () => { hasUnsavedChanges = true; generateLink(); });
+    document.getElementById('input-wordlimit').addEventListener('input', () => { hasUnsavedChanges = true; generateLink(); });
+
+    // --- 3. Link Generation ---
+    function generateLink() {
+        // Gather all the web addresses from our boxes
+        const inputs = urlContainer.querySelectorAll('input[type="text"]');
+        const uris = [];
+        inputs.forEach(input => {
+            if (input.value.trim() !== '') {
+                uris.push(input.value.trim());
+            }
+        });
+
+        const columns = document.getElementById('input-columns').value;
+        const wordlimit = document.getElementById('input-wordlimit').value;
+
+        // Bundle them into a data package
+        const dataPackage = {
+            uris: uris,
+            columns: columns,
+            wordlimit: wordlimit
+        };
+
+        // Turn the package into text, then into a safe Base64 "secret code"
+        const jsonText = JSON.stringify(dataPackage);
+        const encodedCode = btoa(jsonText);
+
+        // Assume the viewer file is called viewer.html and in the same folder
+        // We get the current website address, remove 'builder.html', and attach 'viewer.html'
+        let currentPath = window.location.href;
+        currentPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
+        const finalLink = `${currentPath}/viewer.html#${encodedCode}`;
+
+        document.getElementById('output-link').value = finalLink;
+    }
+
+    // --- 4. Preview Button ---
+    document.getElementById('btn-preview').addEventListener('click', () => {
+        const link = document.getElementById('output-link').value;
+        if (link) {
+            document.getElementById('preview-frame').src = link;
+        } else {
+            alert("Please add some feeds first to generate a link.");
+        }
+    });
+
+    // --- 5. Saving to Laptop Memory (Cache) ---
+    document.getElementById('btn-save-cache').addEventListener('click', () => {
+        const inputs = urlContainer.querySelectorAll('input[type="text"]');
+        const uris = Array.from(inputs).map(input => input.value.trim()).filter(v => v !== '');
+
+        const memoryData = {
+            uris: uris,
+            columns: document.getElementById('input-columns').value,
+            wordlimit: document.getElementById('input-wordlimit').value
+        };
+
+        localStorage.setItem('rss_builder_memory', JSON.stringify(memoryData));
+        hasUnsavedChanges = false;
+        alert("✅ Setup saved successfully to your laptop's memory.");
+    });
+
+    function loadFromMemory() {
+        const memoryString = localStorage.getItem('rss_builder_memory');
+        if (memoryString) {
+            try {
+                const memoryData = JSON.parse(memoryString);
+
+                document.getElementById('input-columns').value = memoryData.columns || 2;
+                document.getElementById('input-wordlimit').value = memoryData.wordlimit || 50;
+
+                if (memoryData.uris && memoryData.uris.length > 0) {
+                    memoryData.uris.forEach(uri => addUrlInput(uri));
+                } else {
+                    addUrlInput(); // Add one blank box if empty
+                }
+            } catch (e) {
+                addUrlInput();
+            }
+        } else {
+            addUrlInput(); // Add one blank box for new users
+        }
+        generateLink(); // create link based on loaded memory
+    }
+
+    // --- 6. Prevent Accidental Closure ---
+    window.addEventListener('beforeunload', function (e) {
+        if (hasUnsavedChanges) {
+            // Browsers show their own standard warning message
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
+    // Start by loading memory when page opens
+    loadFromMemory();
+
+</script>
+</body>
+</html>
