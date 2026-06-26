@@ -61,10 +61,10 @@
             padding: 20px;
         }
 
-        .theme-toggle {
+        /* Shared Top Button Styles */
+        .top-btn {
             position: absolute;
             top: 20px;
-            right: 20px;
             background-color: var(--panel-bg);
             color: var(--text-color);
             border: 2px solid var(--dark-purple);
@@ -74,11 +74,20 @@
             font-weight: bold;
             box-shadow: var(--shadow);
             transition: 0.2s;
+            font-size: 1rem;
         }
 
-        .theme-toggle:hover {
+        .top-btn:hover {
             background-color: var(--dark-purple);
             color: #fff;
+        }
+
+        .theme-toggle {
+            left: 20px; /* Moved to left */
+        }
+
+        .fullscreen-toggle {
+            right: 20px; /* Kept on right */
         }
 
         .clock-container {
@@ -112,7 +121,7 @@
             padding: 20px;
             display: flex;
             flex-direction: column;
-            overflow-y: auto; /* Fallback scrollbar enabled */
+            overflow-y: auto;
             min-width: 350px;
         }
 
@@ -157,14 +166,14 @@
             justify-content: space-between;
             align-items: center;
             flex: 1 1 auto;
-            min-height: 80px; /* The safety net: triggers scrollbar if screen gets too full */
+            min-height: 90px; /* Slightly increased to accommodate larger text */
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
 
         .timer-content {
             display: flex;
-            flex-direction: row; /* Aligns items horizontally */
-            flex-wrap: wrap; /* Wraps to next line if panel is too narrow */
+            flex-direction: row;
+            flex-wrap: wrap;
             align-items: center;
             flex-grow: 1;
             gap: 15px;
@@ -173,8 +182,8 @@
 
         /* Unified Shared Font Styling */
         .dynamic-font {
-            /* Smooth scaling with a hard minimum size */
-            font-size: clamp(1.2rem, calc(40vh / (var(--timer-count) * 1.5)), 2rem);
+            /* Increased the clamp base and max values for bigger text */
+            font-size: clamp(1.6rem, calc(45vh / (var(--timer-count) * 1.5)), 2.8rem);
             font-weight: bold;
             color: var(--text-color);
             line-height: 1.2;
@@ -189,8 +198,8 @@
         }
 
         input[type="text"].dynamic-font {
-            width: clamp(120px, 30%, 250px);
-            flex-grow: 1; /* Name input stretches */
+            width: clamp(120px, 30%, 300px);
+            flex-grow: 1;
         }
 
         input[type="time"].dynamic-font {
@@ -234,7 +243,7 @@
             border: none;
             color: var(--text-color);
             cursor: pointer;
-            font-size: 1.4rem; /* Static size to maintain 2x2 grid structure */
+            font-size: 1.4rem;
             transition: transform 0.1s;
             position: relative;
         }
@@ -306,7 +315,8 @@
 <body>
 
     <div class="top-pane">
-        <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()">Switch to Light Mode</button>
+        <button class="top-btn theme-toggle" id="themeBtn" onclick="toggleTheme()">Switch to Light Mode</button>
+        <button class="top-btn fullscreen-toggle" id="fullscreenBtn" onclick="toggleFullscreen()"><sup>⇱</sup><sub>⇲</sub> Fullscreen</button>
         <div class="clock-container" id="mainClock">
             00:00
         </div>
@@ -316,7 +326,7 @@
 
         <div class="left-pane" id="leftPane">
             <div class="timers-list" id="timersList">
-                </div>
+            </div>
             <button class="add-btn" onclick="addTimer()">+ Add Timer</button>
         </div>
 
@@ -324,21 +334,31 @@
 
         <div class="right-pane" id="rightPane">
             <div class="notes-area" id="notesArea" contenteditable="true">
-                Module code: JV....<br>
-                Module name: ...<br>
-                Today's date: June 2, 2026
-            </div>
+                </div>
         </div>
     </div>
 
     <script>
         // --- 1. Data Protection & Initialization ---
-
         window.addEventListener('beforeunload', (e) => {
             e.preventDefault();
             e.returnValue = '';
         });
 
+        // Initialize dynamic date (dd/mm/yyyy ensuring 2 digits)
+        const today = new Date();
+        const dd = String(today.getDate()).padStart(2, '0');
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const yyyy = today.getFullYear();
+        const formattedDate = `${dd}/${mm}/${yyyy}`;
+
+        document.getElementById('notesArea').innerHTML = `
+            Module code: JV....<br>
+            Module name: ...<br>
+            Today's date: ${formattedDate}
+        `;
+
+        // Initialize exam times
         const now = new Date();
         const nextHour = new Date(now);
         nextHour.setHours(now.getHours() + 1, 0, 0, 0);
@@ -351,12 +371,13 @@
                    dateObj.getMinutes().toString().padStart(2, '0');
         }
 
+        // Timers turned off by default (showRemaining: false)
         let timers = [
             { id: generateId(), name: 'Exam start', time: formatTo24H(nextHour), showRemaining: false, color: getRandomColor() },
-            { id: generateId(), name: 'Exam end', time: formatTo24H(twoHoursLater), showRemaining: true, color: getRandomColor() }
+            { id: generateId(), name: 'Exam end', time: formatTo24H(twoHoursLater), showRemaining: false, color: getRandomColor() }
         ];
 
-        // --- 2. Theme Management ---
+        // --- 2. Theme & Fullscreen Management ---
         function toggleTheme() {
             const body = document.body;
             const btn = document.getElementById('themeBtn');
@@ -368,6 +389,26 @@
                 btn.innerText = 'Switch to Dark Mode';
             }
         }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.error(`Error attempting to enable fullscreen: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Listens for native fullscreen exits (like pressing Esc) to update button text
+        document.addEventListener('fullscreenchange', () => {
+            const btn = document.getElementById('fullscreenBtn');
+            if (document.fullscreenElement) {
+                btn.innerHTML = '<sup>⇲</sup><sub>⇱</sub> Collapse';
+            } else {
+                btn.innerHTML = '<sup>⇱</sup><sub>⇲</sub> Fullscreen';
+            }
+        });
 
         // --- 3. Pane Resizer Logic ---
         const resizer = document.getElementById('resizer');
@@ -407,7 +448,6 @@
             const container = document.getElementById('timersList');
             container.innerHTML = '';
 
-            // Push the timer count to CSS for font scaling
             document.documentElement.style.setProperty('--timer-count', timers.length || 1);
 
             timers.forEach((timer, index) => {
@@ -446,7 +486,6 @@
             });
             renderTimers();
 
-            // Scroll to bottom when adding a new timer, in case scrollbar is active
             const leftPane = document.getElementById('leftPane');
             setTimeout(() => {
                 leftPane.scrollTo({ top: leftPane.scrollHeight, behavior: 'smooth' });
