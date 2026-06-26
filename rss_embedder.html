@@ -91,7 +91,6 @@
 
         iframe.preview-frame {
             width: 100%;
-            height: 600px;
             border: 2px dashed var(--border-colour);
             border-radius: 8px;
             background-color: var(--bg-colour);
@@ -104,12 +103,9 @@
             color: gray;
         }
 
-        /* Viewer Mode Styles */
+        /* Viewer Mode Styles - Standard Grid */
         #viewer-view { display: none; }
-
-        .masonry-grid {
-            column-gap: 20px;
-        }
+        .masonry-grid { column-gap: 20px; }
 
         .news-card {
             break-inside: avoid;
@@ -124,9 +120,7 @@
             overflow: hidden;
             box-sizing: border-box;
         }
-
         .news-card:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.2); }
-
         .news-card img {
             max-width: 100%;
             height: auto;
@@ -137,59 +131,56 @@
             display: none;
             box-sizing: border-box;
         }
-
-        .news-title {
-            font-size: 1.2em;
-            font-weight: bold;
-            margin-bottom: 8px;
-            margin-top: 0;
-        }
-
-        .news-source {
-            font-size: 0.8em;
-            text-transform: uppercase;
-            font-weight: bold;
-            color: rgba(0,0,0,0.6);
-            margin-bottom: 10px;
-            border-bottom: 1px solid rgba(0,0,0,0.1);
-            padding-bottom: 5px;
-        }
-
+        .news-title { font-size: 1.2em; font-weight: bold; margin-bottom: 8px; margin-top: 0; }
+        .news-source { font-size: 0.8em; text-transform: uppercase; font-weight: bold; color: rgba(0,0,0,0.6); margin-bottom: 10px; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 5px; }
         .news-abstract { font-size: 0.95em; line-height: 1.4; }
         .news-full { display: none; font-size: 0.95em; line-height: 1.4; }
 
-        .card-footer {
-            margin-top: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .read-more-link {
-            display: inline-block;
-            background-color: rgba(0,0,0,0.1);
-            padding: 5px 10px;
-            border-radius: 4px;
-            text-decoration: none;
-            color: var(--card-text-colour);
-            font-weight: bold;
-            font-size: 0.9em;
-        }
+        .card-footer { margin-top: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .read-more-link { display: inline-block; background-color: rgba(0,0,0,0.1); padding: 5px 10px; border-radius: 4px; text-decoration: none; color: var(--card-text-colour); font-weight: bold; font-size: 0.9em; }
         .read-more-link:hover { background-color: rgba(0,0,0,0.2); }
-
-        .btn-collapse {
-            display: none;
-            background-color: transparent;
-            color: var(--card-text-colour);
-            border: 1px solid rgba(0,0,0,0.3);
-            font-size: 0.8em;
-            padding: 5px 10px;
-        }
+        .btn-collapse { display: none; background-color: transparent; color: var(--card-text-colour); border: 1px solid rgba(0,0,0,0.3); font-size: 0.8em; padding: 5px 10px; }
 
         .news-card.expanded { cursor: default; }
         .news-card.expanded .news-abstract { display: none; }
         .news-card.expanded .news-full { display: block; }
         .news-card.expanded .btn-collapse { display: inline-block; }
+
+        /* Viewer Mode Styles - News Header Carousel */
+        #viewer-carousel { display: none; position: relative; width: 100%; height: 100vh; overflow: hidden; box-sizing: border-box; padding: 10px 60px 10px 60px; }
+
+        .carousel-track { position: relative; width: 100%; height: 100%; }
+
+        .carousel-slide {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            padding: 20px; box-sizing: border-box;
+            display: flex; flex-direction: column; cursor: pointer;
+            transition: transform 0.6s ease-in-out, opacity 0.6s ease-in-out;
+            transform: translateX(150%); opacity: 0; color: var(--card-text-colour); text-decoration: none;
+        }
+
+        .carousel-slide.active { transform: translateX(0); opacity: 1; z-index: 2; }
+        .carousel-slide.outgoing-left { transform: translateX(-150%); opacity: 0; z-index: 1; }
+        .carousel-slide.outgoing-right { transform: translateX(150%); opacity: 0; z-index: 1; }
+
+        .carousel-slide:hover { opacity: 0.95; }
+        .carousel-slide img { display: none; }
+        .carousel-slide .news-abstract { flex-grow: 1; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; }
+        .carousel-slide .read-more-link { margin-top: 10px; text-align: right; display: block; }
+
+        .nav-btn {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            background-color: var(--primary-dark-green); color: white;
+            border: none; width: 40px; height: 40px; border-radius: 50%;
+            cursor: pointer; z-index: 10; font-size: 1.2em; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .nav-btn:hover { background-color: var(--primary-light-green); }
+        .prev-btn { left: 10px; }
+        .next-btn { right: 10px; }
+
+        /* Hide body padding when strictly in viewer mode to maximize space */
+        body.is-viewer { padding: 0; overflow: hidden; }
 
     </style>
 </head>
@@ -229,7 +220,24 @@
         </div>
 
         <div class="panel">
-            <h2>2. Layout Settings</h2>
+            <h2>2. Display Mode</h2>
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                <input type="checkbox" id="input-is-newsheader" style="width: auto; margin: 0; transform: scale(1.2);">
+                <strong>Enable News Header Mode (Single-item Carousel)</strong>
+            </label>
+
+            <div id="newsheader-settings" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border-colour);">
+                <label>Time to show each news item (seconds):</label>
+                <input type="number" id="input-time" min="3" max="60" value="8">
+
+                <label>Iframe Height in Canvas (vh - Percentage of screen height):</label>
+                <input type="number" id="input-iframe-height" min="10" max="100" value="30">
+                <small style="color: gray;">e.g., 30 means it will take up 30% of the student's screen height.</small>
+            </div>
+        </div>
+
+        <div class="panel" id="grid-settings">
+            <h2>3. Grid Layout Settings (Disabled in Header Mode)</h2>
             <label>Number of Columns (Grid width):</label>
             <input type="number" id="input-columns" min="1" max="5" value="3">
 
@@ -238,7 +246,7 @@
         </div>
 
         <div class="panel">
-            <h2>3. Your Code</h2>
+            <h2>4. Your Code</h2>
             <label>Direct Link:</label>
             <input type="text" id="output-link" readonly>
 
@@ -263,8 +271,13 @@
         <div id="viewer-grid" class="masonry-grid"></div>
     </div>
 
+    <div id="viewer-carousel">
+        <button class="nav-btn prev-btn">&lt;</button>
+        <div class="carousel-track" id="carousel-track"></div>
+        <button class="nav-btn next-btn">&gt;</button>
+    </div>
+
     <script>
-        // Severed strings prevent aggressive markdown auto-linking in chat interfaces
         const protocol = 'h' + 't' + 't' + 'p' + 's' + ':' + '/' + '/';
         const DOMAIN = "giancarlo-catalano.github.io";
         const BASE_URL = protocol + DOMAIN + "/rss_embedder.html";
@@ -276,18 +289,14 @@
             { type: 'json', getUrl: (uri) => protocol + "api.allorigins.win/get?url=" + encodeURIComponent(uri) }
         ];
 
-        // Pastel colour array
-        const pastels = ['#cc9cff', '#ffbac4', '#ffd9ba', '#ffecb8',
-            '#befff8', '#cbe3fa'];
+        const pastels = ['#cc9cff', '#ffbac4', '#ffd9ba', '#ffecb8', '#befff8', '#cbe3fa'];
 
-        // Heuristic function to generate a consistent colour based on the URI string
         function getColourForUri(uri) {
             let hash = 0;
             for (let i = 0; i < uri.length; i++) {
                 hash = uri.charCodeAt(i) + ((hash << 5) - hash);
             }
-            const index = Math.abs(hash) % pastels.length;
-            return pastels[index];
+            return pastels[Math.abs(hash) % pastels.length];
         }
 
         const themeToggle = document.getElementById('theme-toggle');
@@ -296,23 +305,30 @@
             document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
         });
 
-        // Initialize display based on URL parameters
         function initApp() {
             const hash = window.location.hash.substring(1);
-            const builderView = document.getElementById('builder-view');
-            const viewerView = document.getElementById('viewer-view');
-            const mainHeader = document.getElementById('main-header');
 
             if (hash) {
-                // Viewer Mode - explicitly hide builder and header
-                builderView.style.display = 'none';
-                mainHeader.style.display = 'none';
-                viewerView.style.display = 'block';
-                initViewer(hash);
+                // We are embedded or viewing
+                document.body.classList.add('is-viewer');
+                document.getElementById('builder-view').style.display = 'none';
+                document.getElementById('main-header').style.display = 'none';
+
+                try {
+                    const settings = JSON.parse(atob(hash));
+                    if (settings.isNewsHeader) {
+                        document.getElementById('viewer-carousel').style.display = 'block';
+                        document.getElementById('viewer-view').style.display = 'none'; // Explicit override
+                    } else {
+                        document.getElementById('viewer-view').style.display = 'block';
+                        document.getElementById('viewer-carousel').style.display = 'none'; // Explicit override
+                    }
+                    initViewer(settings);
+                } catch (e) { /* silent fail */ }
+
             } else {
-                // Builder Mode - explicitly hide viewer
-                viewerView.style.display = 'none';
-                builderView.style.display = 'block';
+                // We are building
+                document.getElementById('builder-view').style.display = 'block';
                 initBuilder();
             }
         }
@@ -324,6 +340,17 @@
             document.getElementById('btn-add-url').addEventListener('click', () => addUrlInput());
             document.getElementById('input-columns').addEventListener('input', generateCodes);
             document.getElementById('input-wordlimit').addEventListener('input', generateCodes);
+            document.getElementById('input-time').addEventListener('input', generateCodes);
+            document.getElementById('input-iframe-height').addEventListener('input', generateCodes);
+
+            const headerCheckbox = document.getElementById('input-is-newsheader');
+            headerCheckbox.addEventListener('change', (e) => {
+                const isChecked = e.target.checked;
+                document.getElementById('newsheader-settings').style.display = isChecked ? 'block' : 'none';
+                document.getElementById('grid-settings').style.opacity = isChecked ? '0.5' : '1';
+                document.getElementById('input-columns').disabled = isChecked;
+                generateCodes();
+            });
 
             document.getElementById('btn-copy-iframe').addEventListener('click', (e) => {
                 const code = document.getElementById('output-iframe').value;
@@ -339,9 +366,7 @@
                     const currentSrc = iframe.src;
                     iframe.src = 'about:blank';
                     setTimeout(() => iframe.src = currentSrc, 50);
-                } else {
-                    generateCodes();
-                }
+                } else { generateCodes(); }
             });
 
             document.getElementById('btn-load-previous').addEventListener('click', () => {
@@ -350,53 +375,50 @@
                 if (match && match[1]) {
                     try {
                         const settings = JSON.parse(atob(match[1]));
-                        document.getElementById('input-columns').value = settings.columns || 3;
+
                         document.getElementById('input-wordlimit').value = settings.wordlimit || 40;
+
+                        // Handle restored modes
+                        const isNewsHeader = !!settings.isNewsHeader;
+                        document.getElementById('input-is-newsheader').checked = isNewsHeader;
+                        document.getElementById('newsheader-settings').style.display = isNewsHeader ? 'block' : 'none';
+                        document.getElementById('input-time').value = settings.timeForEachItem || 8;
+                        document.getElementById('input-iframe-height').value = settings.iframeHeight || 30;
+                        document.getElementById('grid-settings').style.opacity = isNewsHeader ? '0.5' : '1';
+
+                        document.getElementById('input-columns').disabled = isNewsHeader;
+                        if (!isNewsHeader && settings.columns) {
+                            document.getElementById('input-columns').value = settings.columns;
+                        }
+
                         document.getElementById('url-container').innerHTML = '';
                         if (settings.uris && settings.uris.length > 0) {
                             settings.uris.forEach(uri => addUrlInput(uri));
-                        } else {
-                            addUrlInput();
-                        }
+                        } else { addUrlInput(); }
+
                         generateCodes();
                         document.getElementById('input-load-previous').value = '';
                         alert("Settings reloaded successfully.");
-                    } catch (err) {
-                        alert("Could not read settings. Ensure it is a complete embed code or URL.");
-                    }
-                } else {
-                    alert("No valid settings found in the text provided.");
-                }
+                    } catch (err) { alert("Could not read settings. Ensure it is a complete embed code or URL."); }
+                } else { alert("No valid settings found."); }
             });
         }
 
         function addUrlInput(value = '') {
             const container = document.getElementById('url-container');
-            const div = document.createElement('div');
-            div.className = 'url-item';
-
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.placeholder = protocol + 'example.com/rss.xml';
-            input.value = value;
+            const div = document.createElement('div'); div.className = 'url-item';
+            const input = document.createElement('input'); input.type = 'text';
+            input.placeholder = protocol + 'example.com/rss.xml'; input.value = value;
             input.addEventListener('input', generateCodes);
-
-            const btn = document.createElement('button');
-            btn.textContent = 'Remove';
-            btn.className = 'btn-remove';
+            const btn = document.createElement('button'); btn.textContent = 'Remove'; btn.className = 'btn-remove';
             btn.onclick = () => { div.remove(); generateCodes(); };
-
-            div.appendChild(input);
-            div.appendChild(btn);
-            container.appendChild(div);
+            div.appendChild(input); div.appendChild(btn); container.appendChild(div);
         }
 
         let previewTimeout;
         function generateCodes() {
             const inputs = document.querySelectorAll('#url-container input[type="text"]');
             const uris = Array.from(inputs).map(i => i.value.trim()).filter(v => v !== '');
-            const columns = document.getElementById('input-columns').value;
-            const wordlimit = document.getElementById('input-wordlimit').value;
 
             if (uris.length === 0) {
                 document.getElementById('output-link').value = '';
@@ -405,17 +427,39 @@
                 return;
             }
 
-            const data = { uris, columns, wordlimit };
+            const wordlimit = document.getElementById('input-wordlimit').value;
+            const isNewsHeader = document.getElementById('input-is-newsheader').checked;
+
+            // Conditionally build data package so parameters cannot leak
+            let data = { uris, wordlimit };
+
+            if (isNewsHeader) {
+                data.isNewsHeader = true;
+                data.timeForEachItem = document.getElementById('input-time').value;
+                data.iframeHeight = document.getElementById('input-iframe-height').value;
+            } else {
+                data.columns = document.getElementById('input-columns').value;
+            }
+
             const hash = btoa(JSON.stringify(data));
             const fullUrl = `${BASE_URL}#${hash}`;
-
             document.getElementById('output-link').value = fullUrl;
-            document.getElementById('output-iframe').value = `<iframe src="${fullUrl}" width="100%" height="100%" style="border:none; min-height:600px;" title="Embedded RSS Feed"></iframe>`;
+
+            // Adjust iframe visual code based on mode
+            let styleStr = "border:none; width:100%;";
+            let previewHeight = "600px";
+            if (isNewsHeader) {
+                styleStr += ` height:${data.iframeHeight}vh;`;
+                previewHeight = `${data.iframeHeight}vh`;
+            } else {
+                styleStr += ` min-height:600px;`;
+            }
+
+            document.getElementById('output-iframe').value = `<iframe src="${fullUrl}" style="${styleStr}" title="Embedded RSS Feed"></iframe>`;
 
             clearTimeout(previewTimeout);
             previewTimeout = setTimeout(() => {
-                const previewContainer = document.getElementById('preview-container');
-                previewContainer.innerHTML = `<iframe class="preview-frame" src="${fullUrl}"></iframe>`;
+                document.getElementById('preview-container').innerHTML = `<iframe class="preview-frame" style="height:${previewHeight};" src="${fullUrl}"></iframe>`;
             }, 800);
         }
 
@@ -425,121 +469,186 @@
             const controller = new AbortController();
             const id = setTimeout(() => controller.abort(), timeout);
             const response = await fetch(resource, { ...options, signal: controller.signal });
-            clearTimeout(id);
-            return response;
+            clearTimeout(id); return response;
         }
 
-        async function initViewer(hash) {
-            let settings;
-            try { settings = JSON.parse(atob(hash)); } catch (e) { return; }
-
-            const grid = document.getElementById('viewer-grid');
-            grid.style.columnCount = settings.columns || 3;
+        async function initViewer(settings) {
+            if (!settings.uris || settings.uris.length === 0) return;
             const wordLimit = parseInt(settings.wordlimit) || 40;
 
-            if (!settings.uris || settings.uris.length === 0) return;
+            // 1. Fetch all items and group them by source feed
+            let allFeedResults = [];
 
             for (const uri of settings.uris) {
-                // Get the consistent colour for this specific news source
                 const cardColour = getColourForUri(uri);
+                let feedItems = [];
 
                 for (let i = 0; i < PROXIES.length; i++) {
                     const proxy = PROXIES[i];
                     const timeoutMs = (i === PROXIES.length - 1) ? 3000 : 1000;
-
                     try {
                         const response = await fetchWithTimeout(proxy.getUrl(uri), { timeout: timeoutMs });
                         if (!response.ok) continue;
 
-                        let xmlText = "";
-                        if (proxy.type === 'json') {
-                            const data = await response.json();
-                            xmlText = data.contents;
-                        } else {
-                            xmlText = await response.text();
-                        }
-
-                        const parser = new DOMParser();
-                        const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-
+                        let xmlText = proxy.type === 'json' ? (await response.json()).contents : await response.text();
+                        const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
                         if (xmlDoc.querySelector("parsererror")) continue;
 
                         const sourceTitle = xmlDoc.querySelector("channel > title")?.textContent || "News Source";
                         const items = xmlDoc.querySelectorAll("item, entry");
 
-                        items.forEach(item => processFeedItem(item, sourceTitle, wordLimit, grid, cardColour));
-
+                        items.forEach(item => {
+                            const parsed = parseFeedItem(item, sourceTitle, wordLimit, cardColour);
+                            if(parsed) feedItems.push(parsed);
+                        });
                         break;
-                    } catch (error) {
-                        continue;
+                    } catch (error) { continue; }
+                }
+                if (feedItems.length > 0) allFeedResults.push(feedItems);
+            }
+
+            // 2. Round-Robin Sorter
+            let sortedItems = [];
+            let hasMore = true;
+            let index = 0;
+            while(hasMore) {
+                hasMore = false;
+                for(let i = 0; i < allFeedResults.length; i++) {
+                    if(index < allFeedResults[i].length) {
+                        sortedItems.push(allFeedResults[i][index]);
+                        hasMore = true;
                     }
                 }
+                index++;
+            }
+
+            // 3. Render Mode Check
+            if (settings.isNewsHeader) {
+                renderCarousel(sortedItems, settings.timeForEachItem || 8);
+            } else {
+                renderGrid(sortedItems, settings.columns || 3);
             }
         }
 
-        function processFeedItem(item, sourceTitle, wordLimit, grid, cardColour) {
+        function parseFeedItem(item, sourceTitle, wordLimit, cardColour) {
             const title = item.querySelector("title")?.textContent || "Untitled";
-
-            let link = "";
-            const linkNode = item.querySelector("link");
-            if (linkNode) link = linkNode.textContent || linkNode.getAttribute("href") || "#";
-
+            let link = item.querySelector("link")?.textContent || item.querySelector("link")?.getAttribute("href") || "#";
             const description = item.querySelector("description")?.textContent || item.querySelector("content")?.textContent || "";
 
-            let imageUrl = "";
-            const enclosure = item.querySelector("enclosure[type^='image']");
-            const mediaContent = item.querySelector("content[medium='image']");
-            if (enclosure) imageUrl = enclosure.getAttribute("url");
-            else if (mediaContent) imageUrl = mediaContent.getAttribute("url");
-            else {
-                const tempDiv = document.createElement("div");
-                tempDiv.innerHTML = description;
-                const img = tempDiv.querySelector("img");
-                if (img) imageUrl = img.src;
+            let imageUrl = item.querySelector("enclosure[type^='image']")?.getAttribute("url") || item.querySelector("content[medium='image']")?.getAttribute("url");
+            if (!imageUrl) {
+                const tempDiv = document.createElement("div"); tempDiv.innerHTML = description;
+                imageUrl = tempDiv.querySelector("img")?.src || "";
             }
 
-            const tempDiv = document.createElement("div");
-            tempDiv.innerHTML = description;
+            const tempDiv = document.createElement("div"); tempDiv.innerHTML = description;
             const fullText = tempDiv.textContent || tempDiv.innerText || "";
-
-            if (fullText.trim() === "") return;
+            if (fullText.trim() === "") return null;
 
             const words = fullText.split(/\s+/);
-            let abstractText = fullText;
-            if (words.length > wordLimit) {
-                abstractText = words.slice(0, wordLimit).join(" ") + "...";
+            const abstractText = words.length > wordLimit ? words.slice(0, wordLimit).join(" ") + "..." : fullText;
+
+            return { title, link, abstractText, fullText, imageUrl, sourceTitle, cardColour };
+        }
+
+        // --- GRID RENDERER ---
+        function renderGrid(items, columns) {
+            const grid = document.getElementById('viewer-grid');
+            grid.innerHTML = ''; // Clean slate just in case
+            grid.style.columnCount = columns;
+
+            items.forEach(data => {
+                const card = document.createElement('div');
+                card.className = 'news-card';
+                card.style.backgroundColor = data.cardColour;
+
+                let innerHTML = `<div class="news-source">${data.sourceTitle}</div>`;
+                if (data.imageUrl) innerHTML += `<img src="${data.imageUrl}" style="display:block;" alt="Article Image">`;
+                innerHTML += `
+                    <h3 class="news-title">${data.title}</h3>
+                    <div class="news-abstract">${data.abstractText}</div>
+                    <div class="news-full">${data.fullText}</div>
+                    <div class="card-footer">
+                        <a href="${data.link}" class="read-more-link" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">Read Article</a>
+                        <button class="btn-collapse">Collapse</button>
+                    </div>`;
+                card.innerHTML = innerHTML;
+
+                card.addEventListener('click', () => { if (!card.classList.contains('expanded')) card.classList.add('expanded'); });
+                card.querySelector('.btn-collapse').addEventListener('click', (e) => { e.stopPropagation(); card.classList.remove('expanded'); });
+                grid.appendChild(card);
+            });
+        }
+
+        // --- CAROUSEL RENDERER ---
+        function renderCarousel(items, timeSeconds) {
+            if (items.length === 0) return;
+            const track = document.getElementById('carousel-track');
+            track.innerHTML = ''; // Ensure clean slate if re-rendered
+            let slides = [];
+            let currentIndex = 0;
+            let autoTimer = null;
+
+            items.forEach((data, idx) => {
+                const slide = document.createElement('a');
+                slide.href = data.link;
+                slide.target = "_blank";
+                slide.rel = "noopener noreferrer";
+                slide.className = 'carousel-slide';
+                slide.style.backgroundColor = data.cardColour;
+
+                if (idx === 0) slide.classList.add('active');
+                else slide.classList.add('outgoing-right');
+
+                slide.innerHTML = `
+                    <div class="news-source">${data.sourceTitle}</div>
+                    <h3 class="news-title" style="font-size: 1.5em; margin-bottom: 15px;">${data.title}</h3>
+                    <div class="news-abstract" style="font-size: 1.1em; line-height: 1.6;">${data.abstractText}</div>
+                    <span class="read-more-link">Click to read full article &rarr;</span>
+                `;
+                slides.push(slide);
+                track.appendChild(slide);
+            });
+
+            function goToSlide(newIndex, direction) {
+                if (newIndex === currentIndex) return;
+
+                const currentSlide = slides[currentIndex];
+                const nextSlide = slides[newIndex];
+
+                nextSlide.className = 'carousel-slide';
+                nextSlide.classList.add(direction === 'next' ? 'outgoing-right' : 'outgoing-left');
+
+                void nextSlide.offsetWidth; // Force Reflow
+
+                currentSlide.className = 'carousel-slide';
+                currentSlide.classList.add(direction === 'next' ? 'outgoing-left' : 'outgoing-right');
+
+                nextSlide.className = 'carousel-slide active';
+
+                currentIndex = newIndex;
             }
 
-            const card = document.createElement('div');
-            card.className = 'news-card';
-            card.style.backgroundColor = cardColour;
+            function next() { goToSlide((currentIndex + 1) % slides.length, 'next'); }
+            function prev() { goToSlide((currentIndex - 1 + slides.length) % slides.length, 'prev'); }
 
-            let innerHTML = `<div class="news-source">${sourceTitle}</div>`;
-            if (imageUrl) innerHTML += `<img src="${imageUrl}" style="display:block;" alt="Article Image">`;
+            function resetTimer() {
+                if(autoTimer) clearInterval(autoTimer);
+                autoTimer = setInterval(next, timeSeconds * 1000);
+            }
 
-            innerHTML += `
-                <h3 class="news-title">${title}</h3>
-                <div class="news-abstract">${abstractText}</div>
-                <div class="news-full">${fullText}</div>
-                <div class="card-footer">
-                    <a href="${link}" class="read-more-link" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">Read Article</a>
-                    <button class="btn-collapse">Collapse</button>
-                </div>
-            `;
+            // Remove old event listeners by replacing buttons (prevents double-clicks if script re-runs)
+            const nextBtn = document.querySelector('.next-btn');
+            const prevBtn = document.querySelector('.prev-btn');
+            const newNextBtn = nextBtn.cloneNode(true);
+            const newPrevBtn = prevBtn.cloneNode(true);
+            nextBtn.parentNode.replaceChild(newNextBtn, nextBtn);
+            prevBtn.parentNode.replaceChild(newPrevBtn, prevBtn);
 
-            card.innerHTML = innerHTML;
+            newNextBtn.addEventListener('click', () => { next(); resetTimer(); });
+            newPrevBtn.addEventListener('click', () => { prev(); resetTimer(); });
 
-            card.addEventListener('click', () => {
-                if (!card.classList.contains('expanded')) card.classList.add('expanded');
-            });
-
-            const collapseBtn = card.querySelector('.btn-collapse');
-            collapseBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                card.classList.remove('expanded');
-            });
-
-            grid.appendChild(card);
+            resetTimer();
         }
 
         initApp();
