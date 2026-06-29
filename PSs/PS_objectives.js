@@ -215,7 +215,7 @@ function obj_independence(ps, linkage_table) {
 }
 
 function obj_a_plus_i(ps, linkage_table) {
-    return obj_atomicity(ps, linkage_table) + obj_independence(ps, linkage_table);
+    return -obj_atomicity(ps, linkage_table) -obj_independence(ps, linkage_table);
 }
 
 // --- 4. Other Objectives ---
