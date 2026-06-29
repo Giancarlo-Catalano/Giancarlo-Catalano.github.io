@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="https://notepad.js.org/favicon.ico" type="image/x-icon">
+    <title>Persistent Editor</title>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #222222;
+            --caret-color: #000000;
+            --placeholder-color: #888888;
+            --selection-bg: #b3d4fc;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #1e1e1e;
+                --text-color: #e0e0e0;
+                --caret-color: #ffffff;
+                --placeholder-color: #666666;
+                --selection-bg: #264f78;
+            }
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            background-color: var(--bg-color);
+        }
+
+        #editor {
+            width: 100%;
+            height: 100%;
+            box-sizing: border-box;
+            padding: 40px;
+            overflow-y: auto;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            caret-color: var(--caret-color);
+            outline: none;
+
+            /* Typography */
+            font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+            font-size: 16px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        /* Explicit Styling for Formatting */
+        b, strong { font-weight: bold; }
+        i, em { font-style: italic; }
+        u { text-decoration: underline; }
+
+        ::selection { background: var(--selection-bg); }
+
+        #editor:empty:before {
+            content: "Start typing... (Cmd+B for Bold, Cmd+I for Italic)";
+            color: var(--placeholder-color);
+            pointer-events: none;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="editor" contenteditable="true"></div>
+
+    <script>
+        const editor = document.getElementById('editor');
+        const STORAGE_KEY = 'my_distraction_free_notes';
+
+        // Load saved content
+        const savedContent = localStorage.getItem(STORAGE_KEY);
+        if (savedContent) {
+            editor.innerHTML = savedContent;
+        }
+
+        // Save on every keystroke
+        editor.addEventListener('input', () => {
+            localStorage.setItem(STORAGE_KEY, editor.innerHTML);
+        });
+
+        // Paste Cleaner: removes formatting
+        // editor.addEventListener('paste', (e) => {
+        //     e.preventDefault();
+        //     const text = (e.originalEvent || e).clipboardData.getData('text/plain');
+        //     document.execCommand('insertText', false, text);
+        // });
+
+        // Keyboard Interceptors (Formatting, Tab, Save)
+        // Tab will not change focus
+        // Ctrl+b, ctrl+U, ctrl+i behave as expected
+        // Ctrl+s suppressed
+        // Ctrl+X and no selection cuts a line
+        editor.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            const isCmd = e.ctrlKey || e.metaKey;
+            const selection = window.getSelection();
+
+            if (isCmd) {
+                // --- BOLD, ITALIC, UNDERLINE ---
+                if (key === 'b') {
+                    e.preventDefault();
+                    document.execCommand('bold');
+                }
+                else if (key === 'i') {
+                    e.preventDefault();
+                    document.execCommand('italic');
+                }
+                else if (key === 'u') {
+                    e.preventDefault();
+                    document.execCommand('underline');
+                }
+                // --- PREVENT SAVE ---
+                else if (key === 's') {
+                    e.preventDefault();
+                }
+                // --- CUT LINE (Ctrl+X) ---
+                else if (key === 'x') {
+                    // Only run this custom logic if NOTHING is selected
+                    if (selection.isCollapsed) {
+                        e.preventDefault();
+
+                        // 1. Move caret to start of the visual line
+                        selection.modify('move', 'backward', 'lineboundary');
+
+                        // 2. Extend selection to the end of the visual line
+                        selection.modify('extend', 'forward', 'lineboundary');
+
+                        // 3. Cut the text
+                        document.execCommand('cut');
+
+                        // 4. Clean up the empty line that remains (delete the newline char)
+                        document.execCommand('forwardDelete');
+                    }
+                    // If text IS selected, we do nothing and let the browser perform a normal Cut.
+                }
+
+                // --- DUPLICATE LINE (Ctrl+D) ---
+                else if (key === 'd') {
+                    e.preventDefault(); // Stop "Bookmark Page"
+
+                    // If nothing selected, select the whole line first
+                    if (selection.isCollapsed) {
+                        selection.modify('move', 'backward', 'lineboundary');
+                        selection.modify('extend', 'forward', 'lineboundary');
+                    }
+
+                    // 1. Capture the HTML (to preserve formatting)
+                    const range = selection.getRangeAt(0);
+                    const clonedContent = range.cloneContents();
+                    const div = document.createElement('div');
+                    div.appendChild(clonedContent);
+                    const html = div.innerHTML;
+
+                    // 2. Move to end of line/selection
+                    selection.collapseToEnd();
+
+                    // 3. Insert new line and the copied HTML
+                    document.execCommand('insertParagraph');
+                    document.execCommand('insertHTML', false, html);
+                }
+
+            }
+
+            // --- TAB & SHIFT+TAB (Undo-able + Smart Selection) ---
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const selection = window.getSelection();
+                if (selection.rangeCount === 0) return;
+
+                // 0. Capture state BEFORE we change anything
+                const originalRange = selection.getRangeAt(0);
+                const wasCollapsed = selection.isCollapsed; // Was it just a cursor?
+
+                // 1. Helper: Find the "Deepest Line" container (Div or P)
+                const getDeepestLine = (node) => {
+                    if (!node) return null;
+                    if (node === editor || node === document.body) return null;
+                    if (node.nodeType === 1 && (node.tagName === 'DIV' || node.tagName === 'P')) {
+                        return node;
+                    }
+                    return getDeepestLine(node.parentNode);
+                };
+
+                // 2. Helper: Find the FIRST text node (drilling down into <b> etc.)
+                const getFirstTextNode = (node) => {
+                    if (node.nodeType === 3) return node;
+                    if (node.childNodes && node.childNodes.length > 0) {
+                        for (let child of node.childNodes) {
+                            const found = getFirstTextNode(child);
+                            if (found) return found;
+                        }
+                    }
+                    return null;
+                };
+
+                // 3. Identify Lines
+                const uniqueLines = new Set();
+                if (wasCollapsed) {
+                    const line = getDeepestLine(selection.anchorNode);
+                    if (line) uniqueLines.add(line);
+                } else {
+                    const walker = document.createTreeWalker(
+                        editor,
+                        NodeFilter.SHOW_TEXT,
+                        {
+                            acceptNode: (node) => {
+                                if (originalRange.intersectsNode(node)) return NodeFilter.FILTER_ACCEPT;
+                                return NodeFilter.FILTER_REJECT;
+                            }
+                        }
+                    );
+                    while (walker.nextNode()) {
+                        const line = getDeepestLine(walker.currentNode);
+                        if (line) uniqueLines.add(line);
+                    }
+                }
+
+                if (uniqueLines.size === 0) return;
+
+                // 4. Modify Lines (Using execCommand for Ctrl+Z support)
+                const linesArray = Array.from(uniqueLines);
+
+                linesArray.forEach(line => {
+                    const targetNode = getFirstTextNode(line);
+
+                    // Case A: Empty Line -> Create text node
+                    if (!targetNode) {
+                        const r = document.createRange();
+                        r.setStart(line, 0);
+                        r.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(r);
+                        document.execCommand('insertText', false, '    ');
+                        return;
+                    }
+
+                    // Case B: Existing Text -> Replace it to trigger Undo history
+                    const originalText = targetNode.nodeValue;
+                    let newText = originalText;
+
+                    if (e.shiftKey) { // Unindent
+                        const match = originalText.match(/^ {1,4}/);
+                        if (match) newText = originalText.substring(match[0].length);
+                        else return;
+                    } else { // Indent
+                        newText = '    ' + originalText;
+                    }
+
+                    // Select the specific text node
+                    const r = document.createRange();
+                    r.selectNode(targetNode);
+                    selection.removeAllRanges();
+                    selection.addRange(r);
+
+                    // "Type" the new text over it
+                    document.execCommand('insertText', false, newText);
+                });
+
+                // 5. Restore Selection ONLY if it wasn't just a cursor
+                if (!wasCollapsed) {
+                    try {
+                        const firstLine = linesArray[0];
+                        const lastLine = linesArray[linesArray.length - 1];
+                        const newRange = document.createRange();
+                        newRange.setStart(firstLine, 0);
+                        newRange.setEnd(lastLine, lastLine.childNodes.length);
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                    } catch (err) {}
+                }
+                // If it WAS collapsed (cursor only), we do nothing.
+                // execCommand naturally leaves the cursor at the end of the text, ready to type.
+            }
+        });
+
+        // Focus editor
+        editor.focus();
+
+        // Restore cursor position to end
+        if (savedContent) {
+            const range = document.createRange();
+            const selection = window.getSelection();
+            range.selectNodeContents(editor);
+            range.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+    </script>
+
+</body>
+</html>
