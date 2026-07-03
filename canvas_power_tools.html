@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas Page Power Tools</title>
+    <style>
+        :root {
+            --light-green: #76b72a;
+            --dark-green: #006938;
+            --dark-blue: #003A3D;
+            --dark-magenta: #511535;
+            --bg-color: #f4f4f4;
+            --pane-bg: #ffffff;
+            --text-color: #333333;
+            --border-color: #cccccc;
+            --accent-color: var(--dark-green);
+        }
+
+        body.night-mode {
+            --bg-color: #121212;
+            --pane-bg: #1e1e1e;
+            --text-color: #f0f0f0;
+            --border-color: #444444;
+            --accent-color: var(--light-green);
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Header */
+        header {
+            background-color: var(--dark-blue);
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header img {
+            height: 40px;
+        }
+
+        .header-controls button {
+            background: none;
+            border: 1px solid white;
+            color: white;
+            padding: 5px 10px;
+            cursor: pointer;
+            margin-left: 10px;
+            border-radius: 4px;
+        }
+
+        .header-controls button:hover {
+            background-color: rgba(255,255,255,0.2);
+        }
+
+        /* Layout */
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Left Pane (Editor) */
+        .left-pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            border-right: 2px solid var(--border-color);
+            background-color: var(--pane-bg);
+        }
+
+        #editor {
+            flex: 1;
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            overflow-y: auto;
+            outline: none;
+            background-color: var(--pane-bg);
+        }
+
+        #editor.poison-mode .ai-poison {
+            color: red !important;
+            background-color: black !important;
+            font-size: initial !important;
+            font-weight: bold !important;
+        }
+
+        .left-pane-footer {
+            margin-top: 10px;
+        }
+
+        button.primary {
+            background-color: var(--dark-green);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        button.primary:hover {
+            background-color: var(--light-green);
+        }
+
+        /* Right Pane (Tools) */
+        .right-pane {
+            width: 350px;
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .menu-block {
+            background-color: var(--pane-bg);
+            border: 1px solid var(--border-color);
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+
+        .menu-header {
+            padding: 10px;
+            background-color: var(--accent-color);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .menu-content {
+            padding: 10px;
+            display: none;
+        }
+
+        .menu-content.open {
+            display: block;
+        }
+
+        .menu-content label {
+            display: block;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .menu-content input, .menu-content select, .menu-content textarea {
+            width: 100%;
+            padding: 5px;
+            margin-top: 5px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+
+        .menu-content button {
+            margin-top: 10px;
+            width: 100%;
+            padding: 8px;
+            background-color: var(--dark-magenta);
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        /* Modals & Overlays */
+        #notification-area {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+        }
+
+        .notification {
+            background-color: var(--dark-blue);
+            color: white;
+            padding: 15px;
+            margin-top: 10px;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            animation: fadein 0.5s, fadeout 0.5s 4.5s;
+        }
+
+        .notification.error {
+            background-color: #d9534f;
+        }
+
+        #search-modal, #settings-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal-content {
+            background-color: var(--pane-bg);
+            padding: 20px;
+            border-radius: 8px;
+            width: 400px;
+            border: 1px solid var(--border-color);
+        }
+
+        #search-input {
+            width: 100%;
+            padding: 10px;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        #search-results {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        #search-results li {
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+        }
+
+        #search-results li:hover {
+            background-color: var(--bg-color);
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <img src="https://stir.sharepoint.com/sites/CMRDesign/Shared%20Documents/Design%20Work/Resources/Website%20Assets/Sub-branding/International%20Study%20Centre/Primary/primary-logo.png" alt="ISC Logo" onerror="this.style.display='none'">
+            <span style="font-size: 1.2rem; margin-left: 10px;">Canvas Page Power Tools 🛠️</span>
+        </div>
+        <div class="header-controls">
+            <button onclick="toggleNightMode()">🌙 Toggle Night Mode</button>
+            <button onclick="openSettings()">⚙️ Settings</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="left-pane">
+            <div id="editor" contenteditable="true" aria-label="Rich text editor for Canvas content">
+                <h1>Welcome to Canvas Page Power Tools</h1>
+                <p>Start typing your content here...</p>
+            </div>
+            <div class="left-pane-footer">
+                <button class="primary" onclick="copyHTML()">📋 Copy HTML Code</button>
+                <button class="primary" onclick="togglePoisonMode()" style="background-color: var(--dark-magenta);">☠️ Toggle AI Poison View</button>
+            </div>
+        </div>
+
+        <div class="right-pane" id="right-pane">
+            </div>
+    </div>
+
+    <div id="notification-area"></div>
+
+    <div id="search-modal">
+        <div class="modal-content">
+            <h3>🔍 Command Search</h3>
+            <p style="font-size: 12px;">Type a command name (e.g., 'table', 'h1', 'image')</p>
+            <input type="text" id="search-input" placeholder="Search commands...">
+            <ul id="search-results"></ul>
+        </div>
+    </div>
+
+    <div id="settings-modal">
+        <div class="modal-content">
+            <h3>⚙️ Settings</h3>
+            <p>Select which menus are shown in the right pane:</p>
+            <div id="settings-toggles"></div>
+            <button class="primary" onclick="closeSettings()" style="margin-top: 15px; width: 100%;">Close & Save</button>
+        </div>
+    </div>
+
+    <script>
+        // --- State and Cache Management ---
+        let state = {
+            nightMode: false,
+            menus: {
+                font: true, div: true, table: true, image: true, code: true, poison: true, iframe: true
+            },
+            menuStates: {} // true = open, false = collapsed
+        };
+
+        function loadCache() {
+            try {
+                const cached = localStorage.getItem('canvasPowerTools');
+                if (cached) {
+                    state = JSON.parse(cached);
+                } else {
+                    notify("Notice: Your settings will be saved to this computer's cache.", false);
+                }
+            } catch (e) {
+                console.error("Cache load failed", e);
+            }
+            applyState();
+        }
+
+        function saveCache() {
+            try {
+                localStorage.setItem('canvasPowerTools', JSON.stringify(state));
+            } catch (e) {
+                notify("Error: Could not save settings to cache.", true);
+            }
+        }
+
+        // --- Core Functions ---
+        function notify(message, isError = false) {
+            const area = document.getElementById('notification-area');
+            const notif = document.createElement('div');
+            notif.className = 'notification' + (isError ? ' error' : '');
+            notif.innerText = message;
+            area.appendChild(notif);
+            setTimeout(() => { notif.remove(); }, 5000);
+        }
+
+        function toggleNightMode() {
+            state.nightMode = !state.nightMode;
+            applyState();
+            saveCache();
+        }
+
+        function applyState() {
+            if (state.nightMode) {
+                document.body.classList.add('night-mode');
+            } else {
+                document.body.classList.remove('night-mode');
+            }
+            renderMenus();
+        }
+
+        function copyHTML() {
+            const editor = document.getElementById('editor');
+            const html = editor.innerHTML;
+            navigator.clipboard.writeText(html).then(() => {
+                notify("✅ HTML copied to clipboard successfully!");
+            }).catch(err => {
+                notify("❌ Failed to copy HTML. Please select all and copy manually.", true);
+            });
+        }
+
+        function togglePoisonMode() {
+            const editor = document.getElementById('editor');
+            editor.classList.toggle('poison-mode');
+            if(editor.classList.contains('poison-mode')) {
+                notify("☠️ AI Poison view ENABLED. Poison text is now visible.");
+            } else {
+                notify("🟢 AI Poison view DISABLED. Poison text is hidden.");
+            }
+        }
+
+        // --- Editor Insertion Logic ---
+        function insertHTMLAtCursor(html) {
+            const editor = document.getElementById('editor');
+            editor.focus();
+            let sel, range;
+            if (window.getSelection) {
+                sel = window.getSelection();
+                if (sel.getRangeAt && sel.rangeCount) {
+                    range = sel.getRangeAt(0);
+                    // Ensure we are inside the editor
+                    if(!editor.contains(range.commonAncestorContainer)) {
+                        notify("Please click inside the editor first.", true);
+                        return;
+                    }
+                    range.deleteContents();
+                    const el = document.createElement("div");
+                    el.innerHTML = html;
+                    let frag = document.createDocumentFragment(), node, lastNode;
+                    while ( (node = el.firstChild) ) {
+                        lastNode = frag.appendChild(node);
+                    }
+                    range.insertNode(frag);
+                    if (lastNode) {
+                        range = range.cloneRange();
+                        range.setStartAfter(lastNode);
+                        range.collapse(true);
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
+                }
+            }
+        }
+
+        function execCmd(command, value = null) {
+            document.execCommand(command, false, value);
+            document.getElementById('editor').focus();
+        }
+
+        // --- Menu Definitions ---
+        const menuDefinitions = [
+            {
+                id: 'font', title: '📝 Font Editing',
+                render: () => `
+                    <button onclick="execCmd('bold')"><b>B</b></button>
+                    <button onclick="execCmd('italic')"><i>I</i></button>
+                    <button onclick="execCmd('underline')"><u>U</u></button>
+                    <label>Font Size:</label>
+                    <select onchange="execCmd('fontSize', this.value)">
+                        <option value="1">Small</option>
+                        <option value="3" selected>Normal</option>
+                        <option value="5">Large</option>
+                        <option value="7">Huge</option>
+                    </select>
+                    <label>Text Colour:</label>
+                    <input type="color" onchange="execCmd('foreColor', this.value)">
+                    <label>Highlight Colour:</label>
+                    <input type="color" onchange="execCmd('hiliteColor', this.value)">
+                `
+            },
+            {
+                id: 'div', title: '📦 Coloured Box (Div)',
+                render: () => `
+                    <label>Width (%):</label>
+                    <input type="number" id="div-width" value="100" min="10" max="100">
+                    <label>Colour:</label>
+                    <select id="div-color">
+                        <option value="#ffcccc">Light Red</option>
+                        <option value="#ccffcc">Light Green</option>
+                        <option value="#ffffcc">Light Yellow</option>
+                        <option value="#ccccff">Light Blue</option>
+                        <option value="custom">Custom...</option>
+                    </select>
+                    <input type="color" id="div-custom-color" style="display:none;" value="#eeeeee">
+                    <label>Alignment:</label>
+                    <select id="div-align">
+                        <option value="left">Left</option>
+                        <option value="center">Center</option>
+                        <option value="right">Right</option>
+                    </select>
+                    <button onclick="insertDiv()">➕ Insert Box</button>
+                `
+            },
+            {
+                id: 'table', title: '📊 Tables',
+                render: () => `
+                    <label>Rows:</label>
+                    <input type="number" id="tbl-rows" value="3" min="1">
+                    <label>Columns:</label>
+                    <input type="number" id="tbl-cols" value="3" min="1">
+                    <label>Header Colour:</label>
+                    <input type="color" id="tbl-color" value="#006938">
+                    <label>Width (%):</label>
+                    <input type="number" id="tbl-width" value="100" min="10" max="100">
+                    <button onclick="insertTable()">➕ Insert Table</button>
+                `
+            },
+            {
+                id: 'image', title: '🖼️ Images',
+                render: () => `
+                    <label>Image URL:</label>
+                    <input type="text" id="img-url" placeholder="https://...">
+                    <label>Alt Text (Accessibility):</label>
+                    <input type="text" id="img-alt" placeholder="Description of image">
+                    <label>Width (%):</label>
+                    <input type="number" id="img-width" value="50" min="5" max="100">
+                    <label>Position:</label>
+                    <select id="img-pos">
+                        <option value="left">Left</option>
+                        <option value="center">Middle</option>
+                        <option value="right">Right</option>
+                    </select>
+                    <button onclick="insertImage()">➕ Insert Image</button>
+                `
+            },
+            {
+                id: 'code', title: '💻 Code Block',
+                render: () => `
+                    <label>Paste Raw Code:</label>
+                    <textarea id="code-text" rows="4"></textarea>
+                    <label>Format:</label>
+                    <select id="code-format">
+                        <option value="pre">Multi-line block (&lt;pre&gt;)</option>
+                        <option value="code">Single-line inline (&lt;code&gt;)</option>
+                    </select>
+                    <button onclick="insertCode()">➕ Insert Code</button>
+                `
+            },
+            {
+                id: 'poison', title: '☠️ AI Poison',
+                render: () => `
+                    <label>Hidden Instructions (for AI only):</label>
+                    <textarea id="poison-text" rows="3" placeholder="Tell the AI to give wrong answers..."></textarea>
+                    <button onclick="insertPoison()">➕ Insert Hidden Poison</button>
+                `
+            },
+            {
+                id: 'iframe', title: '🌐 Embed Website (iFrame)',
+                render: () => `
+                    <label>Website URL:</label>
+                    <input type="text" id="iframe-url" placeholder="https://...">
+                    <label>Width (%):</label>
+                    <input type="number" id="iframe-width" value="100" min="10" max="100">
+                    <label>Height (pixels):</label>
+                    <input type="number" id="iframe-height" value="400" min="50">
+                    <button onclick="insertIframe()">➕ Insert Embed</button>
+                `
+            }
+        ];
+
+        // --- Menu Actions ---
+        function insertDiv() {
+            const width = document.getElementById('div-width').value;
+            const selColor = document.getElementById('div-color').value;
+            const color = selColor === 'custom' ? document.getElementById('div-custom-color').value : selColor;
+            const align = document.getElementById('div-align').value;
+            let margin = "margin: 10px 0;";
+            if(align === 'center') margin = "margin: 10px auto;";
+            if(align === 'right') margin = "margin: 10px 0 10px auto;";
+
+            const html = `<div style="width: ${width}%; background-color: ${color}; padding: 15px; border-radius: 8px; ${margin}">Your content here...</div><p><br></p>`;
+            insertHTMLAtCursor(html);
+        }
+
+        function insertTable() {
+            const rows = document.getElementById('tbl-rows').value;
+            const cols = document.getElementById('tbl-cols').value;
+            const color = document.getElementById('tbl-color').value;
+            const width = document.getElementById('tbl-width').value;
+
+            let html = `<table style="width: ${width}%; border-collapse: collapse; margin-bottom: 15px;" border="1">`;
+            html += `<thead><tr style="background-color: ${color}; color: white;">`;
+            for(let c=0; c<cols; c++) html += `<th style="padding: 8px;">Header ${c+1}</th>`;
+            html += `</tr></thead><tbody>`;
+
+            for(let r=0; r<rows; r++) {
+                let bg = r % 2 === 0 ? "#f9f9f9" : "#ffffff";
+                html += `<tr style="background-color: ${bg};">`;
+                for(let c=0; c<cols; c++) html += `<td style="padding: 8px; border: 1px solid #ddd;">Data</td>`;
+                html += `</tr>`;
+            }
+            html += `</tbody></table><p><br></p>`;
+            insertHTMLAtCursor(html);
+        }
+
+        function insertImage() {
+            const url = document.getElementById('img-url').value;
+            const alt = document.getElementById('img-alt').value;
+            const width = document.getElementById('img-width').value;
+            const pos = document.getElementById('img-pos').value;
+
+            if(!url) { notify("Please provide an image URL.", true); return; }
+
+            let style = `max-width: ${width}%; height: auto;`;
+            let containerStyle = "display: block;";
+            if(pos === 'center') containerStyle += " text-align: center;";
+            if(pos === 'right') containerStyle += " text-align: right;";
+
+            const html = `<div style="${containerStyle}"><img src="${url}" alt="${alt}" style="${style}"></div><p><br></p>`;
+            insertHTMLAtCursor(html);
+        }
+
+        function insertCode() {
+            const text = document.getElementById('code-text').value;
+            const format = document.getElementById('code-format').value;
+
+            if(!text) { notify("Please type some code.", true); return; }
+
+            // Escape HTML tags to show as text
+            const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+            let html = "";
+            if(format === 'pre') {
+                html = `<pre style="background: #272822; color: #f8f8f2; padding: 10px; border-radius: 4px; overflow-x: auto;"><code>${escaped}</code></pre><p><br></p>`;
+            } else {
+                html = `<code style="background: #eee; color: #d14; padding: 2px 4px; border-radius: 4px;">${escaped}</code>`;
+            }
+            insertHTMLAtCursor(html);
+        }
+
+        function insertPoison() {
+            const text = document.getElementById('poison-text').value;
+            if(!text) { notify("Please type instructions for the AI.", true); return; }
+            const html = `<span class="ai-poison" style="font-size: 0.01px; color: #ffffff; opacity: 0.01;"> ${text} </span>`;
+            insertHTMLAtCursor(html);
+            document.getElementById('poison-text').value = ''; // clear
+            notify("Poison inserted. Toggle view to see it.");
+        }
+
+        function insertIframe() {
+            const url = document.getElementById('iframe-url').value;
+            const width = document.getElementById('iframe-width').value;
+            const height = document.getElementById('iframe-height').value;
+
+            if(!url) { notify("Please provide a website URL.", true); return; }
+
+            const html = `<div style="text-align: center; margin: 15px 0;"><iframe src="${url}" width="${width}%" height="${height}px" style="border: 1px solid #ccc; border-radius: 4px;" allowfullscreen></iframe></div><p><br></p>`;
+            insertHTMLAtCursor(html);
+        }
+
+        // --- UI Rendering ---
+        function renderMenus() {
+            const pane = document.getElementById('right-pane');
+            pane.innerHTML = ''; // Clear
+
+            menuDefinitions.forEach(menu => {
+                if (!state.menus[menu.id]) return; // Skip if disabled in settings
+
+                const block = document.createElement('div');
+                block.className = 'menu-block';
+
+                const isOpen = state.menuStates[menu.id] !== false; // default open but we collapse them below if needed
+
+                block.innerHTML = `
+                    <div class="menu-header" onclick="toggleMenu('${menu.id}')">
+                        <span>${menu.title}</span>
+                        <span>${isOpen ? '🔽' : '◀️'}</span>
+                    </div>
+                    <div class="menu-content ${isOpen ? 'open' : ''}" id="content-${menu.id}">
+                        ${menu.render()}
+                        <div style="text-align: right; margin-top: 5px;">
+                            <button style="width: auto; padding: 4px 8px; font-size: 12px; background: #999;" onclick="hideMenu('${menu.id}')">✖️ Close completely</button>
+                        </div>
+                    </div>
+                `;
+                pane.appendChild(block);
+
+                // Add listener for custom color dropdown in div menu
+                if(menu.id === 'div') {
+                    const sel = block.querySelector('#div-color');
+                    const cust = block.querySelector('#div-custom-color');
+                    if(sel && cust) {
+                        sel.addEventListener('change', (e) => {
+                            cust.style.display = e.target.value === 'custom' ? 'block' : 'none';
+                        });
+                    }
+                }
+            });
+        }
+
+        function toggleMenu(id) {
+            state.menuStates[id] = !(state.menuStates[id] !== false);
+            saveCache();
+            renderMenus();
+        }
+
+        function hideMenu(id) {
+            state.menus[id] = false;
+            saveCache();
+            renderMenus();
+            notify("Menu closed. You can reactivate it in Settings.");
+        }
+
+        function openMenuAndFocus(id) {
+            state.menus[id] = true;
+            state.menuStates[id] = true;
+            saveCache();
+            renderMenus();
+            // Scroll to it
+            setTimeout(() => {
+                const content = document.getElementById(`content-${id}`);
+                if(content) content.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        }
+
+        // --- Settings ---
+        function openSettings() {
+            const toggles = document.getElementById('settings-toggles');
+            toggles.innerHTML = '';
+            menuDefinitions.forEach(menu => {
+                const checked = state.menus[menu.id] ? 'checked' : '';
+                toggles.innerHTML += `
+                    <label style="display:block; margin: 10px 0;">
+                        <input type="checkbox" id="set-${menu.id}" ${checked}> ${menu.title}
+                    </label>
+                `;
+            });
+            document.getElementById('settings-modal').style.display = 'flex';
+        }
+
+        function closeSettings() {
+            menuDefinitions.forEach(menu => {
+                const cb = document.getElementById(`set-${menu.id}`);
+                if(cb) state.menus[menu.id] = cb.checked;
+            });
+            saveCache();
+            renderMenus();
+            document.getElementById('settings-modal').style.display = 'none';
+        }
+
+        // --- Command Search ---
+        const commands = [
+            { name: 'Heading 1 (h1)', aliases: ['h1', 'title', 'heading 1'], action: () => execCmd('formatBlock', 'H1') },
+            { name: 'Heading 2 (h2)', aliases: ['h2', 'subtitle', 'heading 2'], action: () => execCmd('formatBlock', 'H2') },
+            { name: 'Heading 3 (h3)', aliases: ['h3', 'heading 3'], action: () => execCmd('formatBlock', 'H3') },
+            { name: 'Paragraph (p)', aliases: ['p', 'text', 'paragraph'], action: () => execCmd('formatBlock', 'P') },
+            { name: 'Horizontal Line', aliases: ['line', 'hr', 'divider'], action: () => execCmd('insertHorizontalRule') },
+            { name: 'Open Font Tools', aliases: ['font', 'text', 'color', 'bold'], action: () => openMenuAndFocus('font') },
+            { name: 'Open Div/Box Tools', aliases: ['div', 'box', 'background', 'color'], action: () => openMenuAndFocus('div') },
+            { name: 'Open Table Tools', aliases: ['table', 'grid', 'rows'], action: () => openMenuAndFocus('table') },
+            { name: 'Open Image Tools', aliases: ['image', 'picture', 'photo'], action: () => openMenuAndFocus('image') },
+            { name: 'Open Code Tools', aliases: ['code', 'pre', 'script'], action: () => openMenuAndFocus('code') },
+            { name: 'Open AI Poison Tools', aliases: ['poison', 'ai', 'hidden'], action: () => openMenuAndFocus('poison') },
+            { name: 'Open iFrame Tools', aliases: ['iframe', 'embed', 'video', 'website'], action: () => openMenuAndFocus('iframe') }
+        ];
+
+        function openSearch() {
+            document.getElementById('search-modal').style.display = 'flex';
+            document.getElementById('search-input').value = '';
+            document.getElementById('search-input').focus();
+            updateSearchResults('');
+        }
+
+        function closeSearch() {
+            document.getElementById('search-modal').style.display = 'none';
+            document.getElementById('editor').focus();
+        }
+
+        function updateSearchResults(query) {
+            const list = document.getElementById('search-results');
+            list.innerHTML = '';
+            if(!query) return;
+
+            const q = query.toLowerCase();
+            // Fuzzy match scoring
+            const scored = commands.map(cmd => {
+                let score = 0;
+                if (cmd.name.toLowerCase().includes(q)) score += 10;
+                cmd.aliases.forEach(alias => {
+                    if (alias.includes(q)) score += 5;
+                });
+                return { ...cmd, score };
+            }).filter(c => c.score > 0)
+              .sort((a, b) => b.score - a.score)
+              .slice(0, 3); // Top 3
+
+            if(scored.length === 0) {
+                list.innerHTML = '<li>No matches found.</li>';
+                return;
+            }
+
+            scored.forEach(cmd => {
+                const li = document.createElement('li');
+                li.innerText = cmd.name;
+                li.onclick = () => {
+                    cmd.action();
+                    closeSearch();
+                };
+                list.appendChild(li);
+            });
+        }
+
+        document.getElementById('search-input').addEventListener('input', (e) => {
+            updateSearchResults(e.target.value);
+        });
+
+        // --- Event Listeners ---
+        window.addEventListener('keydown', (e) => {
+            // Command search: Alt+Z (Windows) or Alt+/ (Mac Option+/)
+            if (e.altKey && (e.key === 'z' || e.key === 'Z' || e.key === '/')) {
+                e.preventDefault();
+                openSearch();
+            }
+            // Esc to close modals
+            if (e.key === 'Escape') {
+                closeSearch();
+                document.getElementById('settings-modal').style.display = 'none';
+            }
+        });
+
+        window.addEventListener('beforeunload', (e) => {
+            e.preventDefault();
+            e.returnValue = ''; // Shows the "Are you sure?" dialog
+        });
+
+        // Initialization
+        window.onload = () => {
+            // By default, collapse all menus as requested
+            menuDefinitions.forEach(m => state.menuStates[m.id] = false);
+            loadCache();
+        };
+
+    </script>
+</body>
+</html>

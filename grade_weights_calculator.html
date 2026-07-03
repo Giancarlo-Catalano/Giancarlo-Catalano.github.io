@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grade Calculator</title>
+    <style>
+        :root {
+            --light-green: #76b72a;
+            --dark-green: #006938;
+            --dark-blue: #003A3D;
+            --dark-magenta: #511535;
+            --bg-color: #f4f4f9;
+            --text-color: #111111;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            max-height: 60px;
+            background-color: #ffffff;
+            border-radius: 4px;
+            padding: 5px;
+        }
+
+        h1 {
+            color: var(--dark-green);
+            margin: 0;
+            font-size: 1.8em;
+        }
+
+        button {
+            background-color: var(--dark-blue);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            font-size: 1.2em;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--dark-green);
+        }
+
+        button.delete-btn {
+            background-color: transparent;
+            color: #000000;
+            font-weight: bold;
+            padding: 5px 10px;
+            font-size: 1.2em;
+        }
+
+        button.delete-btn:hover {
+            color: red;
+            background-color: transparent;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            background-color: #ffffff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            color: #000000;
+            background-color: #ffffff;
+            font-size: 1.2em;
+        }
+
+        th, td {
+            border: 1px solid #cccccc;
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: var(--light-green);
+            color: #ffffff;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        .weight-input {
+            width: 75px;
+            font-size: 1.4em;
+            text-align: center;
+            padding: 8px;
+            margin-bottom: 5px;
+            border: none;
+            border-radius: 4px;
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+        .text-input, .mark-input {
+            padding: 10px;
+            font-size: 1.2em;
+            border: none;
+            border-radius: 4px;
+            width: 90%;
+            box-sizing: border-box;
+            background-color: #ffffff;
+            color: #000000;
+        }
+
+        .mark-input {
+            text-align: center;
+            width: 80px;
+        }
+
+        .final-grade {
+            font-weight: bold;
+            font-size: 1.4em;
+            color: #000000;
+        }
+
+        .warning-box {
+            background-color: var(--dark-magenta);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.2em;
+        }
+
+        .weight-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            border: 1px solid #ffeeba;
+            display: none;
+            font-size: 1.2em;
+        }
+
+        .bottom-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header-section">
+        <img src="https://stir.sharepoint.com/sites/CMRDesign/Shared%20Documents/Design%20Work/Resources/Website%20Assets/Sub-branding/International%20Study%20Centre/Primary/primary-logo.png" alt="ISC Logo" class="logo" onerror="this.style.display='none'">
+        <h1>🎓 Grade Calculator</h1>
+    </div>
+
+    <div id="cacheWarning" class="warning-box">
+        <span>💾 We noticed you have some saved work on this computer. Would you like to load your previous information or start fresh? (Note: This is tied to this specific computer and browser).</span>
+        <div>
+            <button style="background-color: var(--light-green); color: #000000; font-weight: bold;" onclick="loadCache()">Load Previous Work</button>
+            <button style="background-color: #333333;" onclick="ignoreCache()">Start Fresh</button>
+        </div>
+    </div>
+
+    <div id="weightWarning" class="weight-warning">
+        <strong>Note:</strong> The total weight of your assessments does not add up to 100%. It is currently at <span id="weightTotalDisplay"></span>%. The grades will still be calculated, but please check your weights.
+    </div>
+
+    <div class="table-container">
+        <table id="gradeTable">
+            <thead id="tableHead">
+                </thead>
+            <tbody id="tableBody">
+                </tbody>
+        </table>
+    </div>
+
+    <button onclick="addStudent()">Add Student</button>
+
+    <hr style="margin: 30px 0; border: 0; border-top: 1px solid #ccc;">
+
+    <div class="bottom-controls">
+        <button onclick="resetToEmptyStudent()">Reset to One Empty Student</button>
+        <button onclick="resetAssessments()">Reset to Default Assessments</button>
+        <button onclick="restartTable()" style="background-color: var(--dark-magenta);">Restart Entire Table</button>
+    </div>
+
+    <script>
+        // State Management
+        let assessments = [];
+        let students = [];
+
+        // Default Data
+        function getDefaultAssessments() {
+            return [
+                { id: generateId(), name: "Class test", weight: 30 },
+                { id: generateId(), name: "Assignment", weight: 70 }
+            ];
+        }
+
+        function getEmptyStudent() {
+            return { id: generateId(), name: "", marks: {} };
+        }
+
+        function generateId() {
+            return Math.random().toString(36).substr(2, 9);
+        }
+
+        // Initialization
+        window.onload = function() {
+            const savedData = localStorage.getItem('isc-grade-calc-data');
+            if (savedData) {
+                document.getElementById('cacheWarning').style.display = 'flex';
+                // Temporarily load defaults behind the warning
+                assessments = getDefaultAssessments();
+                students = [getEmptyStudent()];
+            } else {
+                startFresh();
+            }
+            renderTable();
+        };
+
+        // Cache Handling
+        function loadCache() {
+            const savedData = JSON.parse(localStorage.getItem('isc-grade-calc-data'));
+            assessments = savedData.assessments || getDefaultAssessments();
+            students = savedData.students || [getEmptyStudent()];
+            document.getElementById('cacheWarning').style.display = 'none';
+            renderTable();
+        }
+
+        function ignoreCache() {
+            document.getElementById('cacheWarning').style.display = 'none';
+            startFresh();
+            renderTable();
+        }
+
+        function startFresh() {
+            assessments = getDefaultAssessments();
+            students = [getEmptyStudent()];
+            saveData();
+        }
+
+        function saveData() {
+            localStorage.setItem('isc-grade-calc-data', JSON.stringify({ assessments, students }));
+        }
+
+        // Table Rendering
+        function renderTable() {
+            const head = document.getElementById('tableHead');
+            const body = document.getElementById('tableBody');
+
+            // 1. Build Header Row 1 (Weights)
+            let headRow1 = `<tr>
+                <th style="background-color: #ffffff; border: none;"></th>
+                <th style="background-color: #ffffff; border: none; text-align: right; color: #000000; padding-right: 15px;">Percentage Weight:</th>`;
+
+            assessments.forEach(ass => {
+                headRow1 += `<th>
+                    <input type="number" class="weight-input" value="${ass.weight}"
+                           onchange="updateWeight('${ass.id}', this.value)"
+                           placeholder="0"> %
+                </th>`;
+            });
+
+            // Invisible cells above the Add Assessment button and Final Grades
+            headRow1 += `<th style="background-color: #ffffff; border: none;"></th>
+                         <th style="background-color: #ffffff; border: none;"></th>
+                         <th style="background-color: #ffffff; border: none;"></th></tr>`;
+
+            // 2. Build Header Row 2 (Names)
+            let headRow2 = `<tr>
+                <th style="background-color: #ffffff; border: none; width: 40px;"></th>
+                <th style="background-color: #ffffff; border: none; width: 150px;"></th>`;
+
+            assessments.forEach(ass => {
+                headRow2 += `<th>
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <input type="text" class="text-input" value="${ass.name}"
+                               onchange="updateAssessmentName('${ass.id}', this.value)">
+                        <button class="delete-btn" onclick="deleteAssessment('${ass.id}')" title="Delete Assessment">&#10005;</button>
+                    </div>
+                </th>`;
+            });
+
+            // Add Assessment Button as a header, followed by Final Grades
+            headRow2 += `<th style="background-color: #ffffff; border: none; padding: 5px;">
+                             <button onclick="addAssessment()" style="background-color: var(--light-green); color: #000000; font-weight: bold; width: 100%; padding: 12px; font-size: 1.1em;">+ Add Assessment</button>
+                         </th>
+                         <th style="width: 140px;">Final Grade</th>
+                         <th style="width: 140px;">Rounded Final Grade</th>
+                     </tr>`;
+
+            head.innerHTML = headRow1 + headRow2;
+
+            // 3. Build Body Rows (Students)
+            body.innerHTML = '';
+            students.forEach(student => {
+                let row = document.createElement('tr');
+
+                // Delete Student Button
+                let html = `<td><button class="delete-btn" onclick="deleteStudent('${student.id}')" title="Remove Student">&#10005;</button></td>`;
+
+                // Student Name
+                html += `<td><input type="text" class="text-input" value="${student.name}"
+                                   onchange="updateStudentName('${student.id}', this.value)"
+                                   placeholder="Enter name..."></td>`;
+
+                // Marks for each assessment
+                assessments.forEach(ass => {
+                    let mark = student.marks[ass.id] !== undefined ? student.marks[ass.id] : '';
+                    html += `<td><input type="text" class="mark-input" id="mark-${student.id}-${ass.id}"
+                                       value="${mark}"
+                                       oninput="updateMark('${student.id}', '${ass.id}', this.value)"></td>`;
+                });
+
+                // Invisible cell beneath the Add Assessment header button
+                html += `<td style="background-color: #ffffff; border: none;"></td>`;
+
+                // Final Grades Placeholders
+                html += `<td class="final-grade" id="final-${student.id}">-</td>
+                         <td class="final-grade" id="rounded-${student.id}">-</td>`;
+
+                row.innerHTML = html;
+                body.appendChild(row);
+            });
+
+            calculateAllGrades();
+        }
+
+        // Logic & Calculations
+        function calculateAllGrades() {
+            let totalWeight = assessments.reduce((sum, ass) => sum + Number(ass.weight || 0), 0);
+
+            // Weight Warning
+            const warningEl = document.getElementById('weightWarning');
+            if (totalWeight !== 100 && assessments.length > 0) {
+                warningEl.style.display = 'block';
+                document.getElementById('weightTotalDisplay').innerText = totalWeight;
+            } else {
+                warningEl.style.display = 'none';
+            }
+
+            // Student Grades
+            students.forEach(student => {
+                let finalGradeCell = document.getElementById(`final-${student.id}`);
+                let roundedGradeCell = document.getElementById(`rounded-${student.id}`);
+                let sum = 0;
+                let hasError = false;
+
+                assessments.forEach(ass => {
+                    let markInput = document.getElementById(`mark-${student.id}-${ass.id}`);
+                    let markVal = markInput.value.trim();
+                    let numMark = Number(markVal);
+
+                    if (markVal === '') {
+                        markInput.style.backgroundColor = '#ffcccc'; // Error color
+                        hasError = true;
+                    } else if (!Number.isInteger(numMark) || numMark < 0 || numMark > 100) {
+                        markInput.style.backgroundColor = '#ffcccc'; // Error color
+                        hasError = true;
+                    } else {
+                        markInput.style.backgroundColor = '#ffffff'; // Normal color
+                        sum += (numMark * Number(ass.weight));
+                    }
+                });
+
+                if (hasError || assessments.length === 0) {
+                    finalGradeCell.innerText = '-';
+                    roundedGradeCell.innerText = '-';
+                } else {
+                    let finalCalculation = sum / 100;
+                    finalGradeCell.innerText = finalCalculation.toFixed(2);
+                    roundedGradeCell.innerText = Math.round(finalCalculation);
+                }
+            });
+
+            saveData();
+        }
+
+        // Event Handlers for State Updates
+        function updateWeight(id, value) {
+            let ass = assessments.find(a => a.id === id);
+            if (ass) {
+                ass.weight = value;
+                calculateAllGrades();
+            }
+        }
+
+        function updateAssessmentName(id, value) {
+            let ass = assessments.find(a => a.id === id);
+            if (ass) {
+                ass.name = value;
+                saveData();
+            }
+        }
+
+        function updateStudentName(id, value) {
+            let student = students.find(s => s.id === id);
+            if (student) {
+                student.name = value;
+                saveData();
+            }
+        }
+
+        function updateMark(studentId, assessmentId, value) {
+            let student = students.find(s => s.id === studentId);
+            if (student) {
+                student.marks[assessmentId] = value;
+                calculateAllGrades();
+            }
+        }
+
+        // Add / Remove Functions
+        function addAssessment() {
+            let newId = generateId();
+            assessments.push({ id: newId, name: `Assessment ${assessments.length + 1}`, weight: 0 });
+            renderTable();
+        }
+
+        function deleteAssessment(id) {
+            assessments = assessments.filter(a => a.id !== id);
+            renderTable();
+        }
+
+        function addStudent() {
+            students.push(getEmptyStudent());
+            renderTable();
+        }
+
+        function deleteStudent(id) {
+            students = students.filter(s => s.id !== id);
+            renderTable();
+        }
+
+        // Reset Functions
+        function resetToEmptyStudent() {
+            if(confirm("This will remove all students and leave one empty row. Are you sure?")) {
+                students = [getEmptyStudent()];
+                renderTable();
+            }
+        }
+
+        function resetAssessments() {
+            if(confirm("This will reset your columns to the default Class Test and Assignment. Are you sure?")) {
+                let defaultAss = getDefaultAssessments();
+                assessments = defaultAss;
+                students.forEach(s => s.marks = {});
+                renderTable();
+            }
+        }
+
+        function restartTable() {
+            if(confirm("This will wipe all data and restart the table completely. Are you sure?")) {
+                startFresh();
+                renderTable();
+            }
+        }
+
+        // Prevent accidental closing
+        window.addEventListener('beforeunload', function (e) {
+            e.preventDefault();
+            e.returnValue = 'Are you sure you want to leave? Your work is cached, but it is safer to finish up.';
+        });
+
+    </script>
+</body>
+</html>
