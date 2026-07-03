@@ -81,6 +81,7 @@
 
         table {
             width: 100%;
+            table-layout: fixed;
             border-collapse: collapse;
             color: #000000;
             background-color: #ffffff;
@@ -91,22 +92,37 @@
             border: 1px solid #cccccc;
             padding: 10px;
             text-align: center;
+            position: relative;
         }
 
         th {
             background-color: var(--light-green);
-            color: #ffffff;
+            color: #000000; /* Black text explicitly required for the whole table */
         }
 
         tr:nth-child(even) {
             background-color: #f2f2f2;
         }
 
+        /* Invisible Resizer Handle spanning the border */
+        .resizer {
+            position: absolute;
+            top: 0;
+            right: -5px;
+            bottom: 0;
+            width: 10px;
+            cursor: col-resize;
+            user-select: none;
+            z-index: 10;
+            background-color: transparent;
+        }
+
         .weight-input {
-            width: 75px;
+            width: 80%;
+            min-width: 0;
             font-size: 1.4em;
             text-align: center;
-            padding: 8px;
+            padding: 8px 2px;
             margin-bottom: 5px;
             border: none;
             border-radius: 4px;
@@ -115,11 +131,12 @@
         }
 
         .text-input, .mark-input {
-            padding: 10px;
+            padding: 10px 5px;
             font-size: 1.2em;
             border: none;
             border-radius: 4px;
-            width: 90%;
+            width: 100%;
+            min-width: 0;
             box-sizing: border-box;
             background-color: #ffffff;
             color: #000000;
@@ -127,7 +144,6 @@
 
         .mark-input {
             text-align: center;
-            width: 80px;
         }
 
         .final-grade {
@@ -188,6 +204,8 @@
 
     <div class="table-container">
         <table id="gradeTable">
+            <colgroup id="tableColGroup">
+                </colgroup>
             <thead id="tableHead">
                 </thead>
             <tbody id="tableBody">
@@ -209,6 +227,15 @@
         // State Management
         let assessments = [];
         let students = [];
+        let columnWidths = {};
+
+        // Dragging State
+        let isResizing = false;
+        let leftColId = null;
+        let rightColId = null;
+        let startX = 0;
+        let startLeftPercent = 0;
+        let startRightPercent = 0;
 
         // Default Data
         function getDefaultAssessments() {
@@ -231,9 +258,9 @@
             const savedData = localStorage.getItem('isc-grade-calc-data');
             if (savedData) {
                 document.getElementById('cacheWarning').style.display = 'flex';
-                // Temporarily load defaults behind the warning
                 assessments = getDefaultAssessments();
                 students = [getEmptyStudent()];
+                columnWidths = {};
             } else {
                 startFresh();
             }
@@ -245,6 +272,7 @@
             const savedData = JSON.parse(localStorage.getItem('isc-grade-calc-data'));
             assessments = savedData.assessments || getDefaultAssessments();
             students = savedData.students || [getEmptyStudent()];
+            columnWidths = savedData.columnWidths || {};
             document.getElementById('cacheWarning').style.display = 'none';
             renderTable();
         }
@@ -258,58 +286,167 @@
         function startFresh() {
             assessments = getDefaultAssessments();
             students = [getEmptyStudent()];
+            columnWidths = {};
             saveData();
         }
 
         function saveData() {
-            localStorage.setItem('isc-grade-calc-data', JSON.stringify({ assessments, students }));
+            localStorage.setItem('isc-grade-calc-data', JSON.stringify({ assessments, students, columnWidths }));
         }
+
+        // Layout Helpers
+        function getOrderedColIds() {
+            let ids = ['delete', 'name'];
+            assessments.forEach(ass => ids.push(`ass-${ass.id}`));
+            ids.push('add', 'final', 'rounded');
+            return ids;
+        }
+
+        // Drastically reduced minimum widths to allow aggressive shrinking
+        function getMinPx(id) {
+            if (id === 'delete') return 30;
+            if (id === 'name') return 50;
+            if (id === 'add') return 80;
+            if (id === 'final' || id === 'rounded') return 50;
+            return 60;
+        }
+
+        // Resizing Logic
+        function initResize(e, leftId, rightId) {
+            isResizing = true;
+            leftColId = leftId;
+            rightColId = rightId;
+            startX = e.pageX;
+
+            let table = document.getElementById('gradeTable');
+            let tableWidth = table.getBoundingClientRect().width;
+
+            let allCols = getOrderedColIds();
+            let needsLocking = allCols.some(id => !columnWidths[id]);
+
+            if (needsLocking) {
+                allCols.forEach(id => {
+                    let th = document.getElementById(`th-${id}`) || document.getElementById(`td-${id}`);
+                    columnWidths[id] = (th.getBoundingClientRect().width / tableWidth) * 100;
+                    document.getElementById(`col-element-${id}`).style.width = columnWidths[id] + '%';
+                });
+            }
+
+            startLeftPercent = columnWidths[leftId];
+            startRightPercent = columnWidths[rightId];
+
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+
+            e.stopPropagation();
+            e.preventDefault();
+        }
+
+        document.addEventListener('mousemove', function(e) {
+            if (!isResizing) return;
+
+            let tableWidth = document.getElementById('gradeTable').getBoundingClientRect().width;
+            let deltaX = e.pageX - startX;
+            let deltaPercent = (deltaX / tableWidth) * 100;
+
+            let minLeftPercent = (getMinPx(leftColId) / tableWidth) * 100;
+            let minRightPercent = (getMinPx(rightColId) / tableWidth) * 100;
+
+            let maxDeltaPercent = startRightPercent - minRightPercent;
+            let minDeltaPercent = minLeftPercent - startLeftPercent;
+
+            let safeDeltaPercent = Math.max(minDeltaPercent, Math.min(maxDeltaPercent, deltaPercent));
+
+            columnWidths[leftColId] = startLeftPercent + safeDeltaPercent;
+            columnWidths[rightColId] = startRightPercent - safeDeltaPercent;
+
+            document.getElementById(`col-element-${leftColId}`).style.width = columnWidths[leftColId] + '%';
+            document.getElementById(`col-element-${rightColId}`).style.width = columnWidths[rightColId] + '%';
+        });
+
+        document.addEventListener('mouseup', function(e) {
+            if (isResizing) {
+                isResizing = false;
+                document.body.style.cursor = 'default';
+                document.body.style.userSelect = 'auto';
+                saveData();
+            }
+        });
 
         // Table Rendering
         function renderTable() {
+            let allCols = getOrderedColIds();
+            const colGroup = document.getElementById('tableColGroup');
             const head = document.getElementById('tableHead');
             const body = document.getElementById('tableBody');
 
-            // 1. Build Header Row 1 (Weights)
-            let headRow1 = `<tr>
-                <th style="background-color: #ffffff; border: none;"></th>
-                <th style="background-color: #ffffff; border: none; text-align: right; color: #000000; padding-right: 15px;">Percentage Weight:</th>`;
-
-            assessments.forEach(ass => {
-                headRow1 += `<th>
-                    <input type="number" class="weight-input" value="${ass.weight}"
-                           onchange="updateWeight('${ass.id}', this.value)"
-                           placeholder="0"> %
-                </th>`;
+            // 0. Build Column Group
+            let colGroupHTML = '';
+            allCols.forEach(id => {
+                let widthStyle = columnWidths[id] ? `width: ${columnWidths[id]}%;` : '';
+                colGroupHTML += `<col id="col-element-${id}" style="${widthStyle}">`;
             });
+            colGroup.innerHTML = colGroupHTML;
 
-            // Invisible cells above the Add Assessment button and Final Grades
-            headRow1 += `<th style="background-color: #ffffff; border: none;"></th>
-                         <th style="background-color: #ffffff; border: none;"></th>
-                         <th style="background-color: #ffffff; border: none;"></th></tr>`;
+            // 1. Build Header Row 1 (Weights)
+            let headRow1 = `<tr>`;
+            allCols.forEach((colId, index) => {
+                let isLast = index === allCols.length - 1;
+                let nextColId = isLast ? null : allCols[index + 1];
+                let resizerHTML = isLast ? '' : `<div class="resizer" onmousedown="initResize(event, '${colId}', '${nextColId}')"></div>`;
+
+                let content = '';
+                let extraStyles = '';
+
+                if (colId === 'delete') {
+                    extraStyles = 'background-color: transparent; border: none;';
+                } else if (colId === 'name') {
+                    content = 'Percentage Weight:';
+                    extraStyles = 'background-color: transparent; border: none; text-align: right; padding-right: 15px;';
+                } else if (colId.startsWith('ass-')) {
+                    let assId = colId.replace('ass-', '');
+                    let ass = assessments.find(a => a.id === assId);
+                    content = `<input type="number" class="weight-input" value="${ass.weight}" onchange="updateWeight('${ass.id}', this.value)" placeholder="0"> %`;
+                } else {
+                    // add, final, rounded
+                    extraStyles = 'background-color: transparent; border: none;';
+                }
+                headRow1 += `<th style="${extraStyles}">${content}${resizerHTML}</th>`;
+            });
+            headRow1 += `</tr>`;
 
             // 2. Build Header Row 2 (Names)
-            let headRow2 = `<tr>
-                <th style="background-color: #ffffff; border: none; width: 40px;"></th>
-                <th style="background-color: #ffffff; border: none; width: 150px;"></th>`;
+            let headRow2 = `<tr>`;
+            allCols.forEach((colId, index) => {
+                let isLast = index === allCols.length - 1;
+                let nextColId = isLast ? null : allCols[index + 1];
+                let resizerHTML = isLast ? '' : `<div class="resizer" onmousedown="initResize(event, '${colId}', '${nextColId}')"></div>`;
 
-            assessments.forEach(ass => {
-                headRow2 += `<th>
-                    <div style="display: flex; align-items: center; justify-content: space-between;">
-                        <input type="text" class="text-input" value="${ass.name}"
-                               onchange="updateAssessmentName('${ass.id}', this.value)">
-                        <button class="delete-btn" onclick="deleteAssessment('${ass.id}')" title="Delete Assessment">&#10005;</button>
-                    </div>
-                </th>`;
+                let content = '';
+                let extraStyles = '';
+
+                if (colId === 'delete' || colId === 'name') {
+                    extraStyles = 'background-color: transparent; border: none;';
+                } else if (colId.startsWith('ass-')) {
+                    let assId = colId.replace('ass-', '');
+                    let ass = assessments.find(a => a.id === assId);
+                    content = `
+                        <div style="display: flex; align-items: center; justify-content: space-between; overflow: hidden;">
+                            <input type="text" class="text-input" style="width: calc(100% - 30px);" value="${ass.name}" onchange="updateAssessmentName('${ass.id}', this.value)">
+                            <button class="delete-btn" onclick="deleteAssessment('${ass.id}')" title="Delete Assessment">&#10005;</button>
+                        </div>`;
+                } else if (colId === 'add') {
+                    content = `<button onclick="addAssessment()" style="background-color: var(--light-green); color: #000000; font-weight: bold; width: 100%; padding: 12px 5px; font-size: 1.1em; overflow: hidden; white-space: nowrap;">+ Add Assessment</button>`;
+                    extraStyles = 'background-color: transparent; border: none; padding: 5px;';
+                } else if (colId === 'final') {
+                    content = 'Final Grade';
+                } else if (colId === 'rounded') {
+                    content = 'Rounded Final Grade';
+                }
+
+                headRow2 += `<th id="th-${colId}" style="${extraStyles}">${content}${resizerHTML}</th>`;
             });
-
-            // Add Assessment Button as a header, followed by Final Grades
-            headRow2 += `<th style="background-color: #ffffff; border: none; padding: 5px;">
-                             <button onclick="addAssessment()" style="background-color: var(--light-green); color: #000000; font-weight: bold; width: 100%; padding: 12px; font-size: 1.1em;">+ Add Assessment</button>
-                         </th>
-                         <th style="width: 140px;">Final Grade</th>
-                         <th style="width: 140px;">Rounded Final Grade</th>
-                     </tr>`;
+            headRow2 += `</tr>`;
 
             head.innerHTML = headRow1 + headRow2;
 
@@ -318,30 +455,40 @@
             students.forEach(student => {
                 let row = document.createElement('tr');
 
-                // Delete Student Button
-                let html = `<td><button class="delete-btn" onclick="deleteStudent('${student.id}')" title="Remove Student">&#10005;</button></td>`;
+                allCols.forEach((colId, index) => {
+                    let isLast = index === allCols.length - 1;
+                    let nextColId = isLast ? null : allCols[index + 1];
+                    let resizerHTML = isLast ? '' : `<div class="resizer" onmousedown="initResize(event, '${colId}', '${nextColId}')"></div>`;
 
-                // Student Name
-                html += `<td><input type="text" class="text-input" value="${student.name}"
-                                   onchange="updateStudentName('${student.id}', this.value)"
-                                   placeholder="Enter name..."></td>`;
+                    let cellHTML = '';
+                    let extraStyles = '';
 
-                // Marks for each assessment
-                assessments.forEach(ass => {
-                    let mark = student.marks[ass.id] !== undefined ? student.marks[ass.id] : '';
-                    html += `<td><input type="text" class="mark-input" id="mark-${student.id}-${ass.id}"
-                                       value="${mark}"
-                                       oninput="updateMark('${student.id}', '${ass.id}', this.value)"></td>`;
+                    if (colId === 'delete') {
+                        cellHTML = `<button class="delete-btn" onclick="deleteStudent('${student.id}')" title="Remove Student">&#10005;</button>`;
+                    } else if (colId === 'name') {
+                        cellHTML = `<input type="text" class="text-input" value="${student.name}" onchange="updateStudentName('${student.id}', this.value)" placeholder="Enter name...">`;
+                    } else if (colId.startsWith('ass-')) {
+                        let assId = colId.replace('ass-', '');
+                        let mark = student.marks[assId] !== undefined ? student.marks[assId] : '';
+                        cellHTML = `<input type="text" class="mark-input" id="mark-${student.id}-${assId}" value="${mark}" oninput="updateMark('${student.id}', '${assId}', this.value)">`;
+                    } else if (colId === 'add') {
+                        extraStyles = 'background-color: transparent; border: none;';
+                    } else if (colId === 'final') {
+                        cellHTML = `-`;
+                        extraStyles = `font-weight: bold; font-size: 1.4em;`;
+                    } else if (colId === 'rounded') {
+                        cellHTML = `-`;
+                        extraStyles = `font-weight: bold; font-size: 1.4em;`;
+                    }
+
+                    let cellIdAttr = '';
+                    if (colId === 'final') cellIdAttr = `id="final-${student.id}"`;
+                    if (colId === 'rounded') cellIdAttr = `id="rounded-${student.id}"`;
+                    if (!cellIdAttr && index === 0) cellIdAttr = `id="td-${colId}"`;
+
+                    row.innerHTML += `<td ${cellIdAttr} style="${extraStyles}">${cellHTML}${resizerHTML}</td>`;
                 });
 
-                // Invisible cell beneath the Add Assessment header button
-                html += `<td style="background-color: #ffffff; border: none;"></td>`;
-
-                // Final Grades Placeholders
-                html += `<td class="final-grade" id="final-${student.id}">-</td>
-                         <td class="final-grade" id="rounded-${student.id}">-</td>`;
-
-                row.innerHTML = html;
                 body.appendChild(row);
             });
 
@@ -352,7 +499,6 @@
         function calculateAllGrades() {
             let totalWeight = assessments.reduce((sum, ass) => sum + Number(ass.weight || 0), 0);
 
-            // Weight Warning
             const warningEl = document.getElementById('weightWarning');
             if (totalWeight !== 100 && assessments.length > 0) {
                 warningEl.style.display = 'block';
@@ -361,7 +507,6 @@
                 warningEl.style.display = 'none';
             }
 
-            // Student Grades
             students.forEach(student => {
                 let finalGradeCell = document.getElementById(`final-${student.id}`);
                 let roundedGradeCell = document.getElementById(`rounded-${student.id}`);
@@ -374,31 +519,31 @@
                     let numMark = Number(markVal);
 
                     if (markVal === '') {
-                        markInput.style.backgroundColor = '#ffcccc'; // Error color
+                        markInput.style.backgroundColor = '#ffcccc';
                         hasError = true;
                     } else if (!Number.isInteger(numMark) || numMark < 0 || numMark > 100) {
-                        markInput.style.backgroundColor = '#ffcccc'; // Error color
+                        markInput.style.backgroundColor = '#ffcccc';
                         hasError = true;
                     } else {
-                        markInput.style.backgroundColor = '#ffffff'; // Normal color
+                        markInput.style.backgroundColor = '#ffffff';
                         sum += (numMark * Number(ass.weight));
                     }
                 });
 
                 if (hasError || assessments.length === 0) {
-                    finalGradeCell.innerText = '-';
-                    roundedGradeCell.innerText = '-';
+                    if (finalGradeCell) finalGradeCell.innerText = '-';
+                    if (roundedGradeCell) roundedGradeCell.innerText = '-';
                 } else {
                     let finalCalculation = sum / 100;
-                    finalGradeCell.innerText = finalCalculation.toFixed(2);
-                    roundedGradeCell.innerText = Math.round(finalCalculation);
+                    if (finalGradeCell) finalGradeCell.innerText = finalCalculation.toFixed(2);
+                    if (roundedGradeCell) roundedGradeCell.innerText = Math.round(finalCalculation);
                 }
             });
 
             saveData();
         }
 
-        // Event Handlers for State Updates
+        // Event Handlers
         function updateWeight(id, value) {
             let ass = assessments.find(a => a.id === id);
             if (ass) {
@@ -435,11 +580,13 @@
         function addAssessment() {
             let newId = generateId();
             assessments.push({ id: newId, name: `Assessment ${assessments.length + 1}`, weight: 0 });
+            columnWidths = {};
             renderTable();
         }
 
         function deleteAssessment(id) {
             assessments = assessments.filter(a => a.id !== id);
+            columnWidths = {};
             renderTable();
         }
 
@@ -466,6 +613,7 @@
                 let defaultAss = getDefaultAssessments();
                 assessments = defaultAss;
                 students.forEach(s => s.marks = {});
+                columnWidths = {};
                 renderTable();
             }
         }
