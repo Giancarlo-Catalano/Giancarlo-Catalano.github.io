@@ -158,8 +158,13 @@ class PS_NSGAII {
     evaluate(ps) {
         let key = ps.join(',');
         if (this.cache.has(key)) return this.cache.get(key);
-
-        let scores = this.objectives.map(objFn => objFn(ps));
+        
+        let scores = this.objectives.map(objFn => {
+            let val = objFn(ps);
+            // Safety Net: Convert NaN or null to Infinity so it gets immediately dominated
+            return (isNaN(val) || val === null) ? Infinity : val;
+        });
+        
         this.cache.set(key, scores);
         this.evaluations_done++;
         return scores;
