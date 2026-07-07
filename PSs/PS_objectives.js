@@ -215,7 +215,9 @@ function obj_independence(ps, linkage_table) {
 }
 
 function obj_a_plus_i(ps, linkage_table) {
-    return -obj_atomicity(ps, linkage_table) -obj_independence(ps, linkage_table);
+    // this is getting CONFUSING! independence is to be minimised, so we don't invert its sign (unlike the thesis) but we do need to invert it in this formula
+  // maximise (A+I) = minimise (-A - I) -> objective is atomicity( as defined above)  + (-1 * ) independence
+    return +obj_atomicity(ps, linkage_table) -obj_independence(ps, linkage_table);
 }
 
 // --- 4. Other Objectives ---
