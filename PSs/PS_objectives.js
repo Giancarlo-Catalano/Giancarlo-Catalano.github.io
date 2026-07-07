@@ -148,7 +148,7 @@ function obj_mwu_test(fMatch, fNotMatch) {
 
 function obj_mwu_test_threshold(fMatch, fNotMatch) {
     let p = mannWhitneyU(fMatch, fNotMatch);
-    return p > 0.05 ? p : 0.05;
+    return p > 0.005 ? p : 0.005;
 }
 
 function obj_weighted_variance(fMatch, fNotMatch, N) {
