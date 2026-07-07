@@ -172,20 +172,41 @@
         function loadPRef(e) {
             const reader = new FileReader();
             reader.onload = (evt) => {
-                const rows = evt.target.result.trim().split('\n');
+                // 1. Strip the hidden UTF-8 BOM that corrupts the first variable
+                const rawText = evt.target.result.replace(/^\uFEFF/, '').trim();
+                const rows = rawText.split('\n');
+                
                 let sols = [], fits = [];
                 searchSpace = [];
-                let fitIdx = rows[0].split(',').findIndex(h => h.toLowerCase().trim() === 'fitness');
+                
+                let headers = rows[0].split(',');
+                let fitIdx = headers.findIndex(h => h.toLowerCase().trim() === 'fitness');
+                // Fallback in case the CSV was generated without a header row
+                if (fitIdx === -1) fitIdx = headers.length - 1; 
+                
+                let startIndex = rows[0].toLowerCase().includes('fitness') ? 1 : 0;
 
-                for(let i=1; i<rows.length; i++) {
+                for(let i = startIndex; i < rows.length; i++) {
                     if(!rows[i].trim()) continue;
-                    let cols = rows[i].split(',').map(Number);
-                    let sol = cols.slice(0, fitIdx);
+                    
+                    let cols = rows[i].split(',');
+                    let sol = [];
+                    
+                    // 2. Safely parse the solution variables
+                    for (let j = 0; j < fitIdx; j++) {
+                        let val = Number(cols[j]);
+                        sol.push(isNaN(val) ? 0 : val); // Sanitize NaN out of the genome
+                    }
                     sols.push(sol);
-                    fits.push(cols[fitIdx]);
-
+                    
+                    // 3. Safely parse the fitness
+                    let fit = Number(cols[fitIdx]);
+                    fits.push(isNaN(fit) ? 0 : fit); // Protect the fitness average
+                    
                     if (searchSpace.length === 0) searchSpace = new Array(sol.length).fill(0);
-                    for (let j=0; j<sol.length; j++) searchSpace[j] = Math.max(searchSpace[j], sol[j] + 1);
+                    for (let j = 0; j < sol.length; j++) {
+                        searchSpace[j] = Math.max(searchSpace[j], sol[j] + 1);
+                    }
                 }
                 db = new PRefDatabase(sols, fits);
                 L_size = db.L;
