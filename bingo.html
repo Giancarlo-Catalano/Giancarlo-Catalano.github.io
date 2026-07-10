@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BINGO Card Generator</title>
+    <style>
+        :root {
+            --primary: #006938;
+            --primary-light: #76b72a;
+            --secondary: #003A3D;
+            --accent: #511535;
+            --bg-color: #ffffff;
+            --text-color: #333333;
+            --input-bg: #f9f9f9;
+            --border-color: #cccccc;
+            --error-bg: #ffe6e6;
+            --error-text: #cc0000;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            font-size: 1.1rem;
+        }
+
+        .header-container {
+            max-width: 1200px;
+            margin: 0 auto 20px auto;
+            text-align: center;
+        }
+
+        h1 {
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .panel {
+            flex: 1;
+            min-width: 300px;
+            background-color: var(--input-bg);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        h2 {
+            color: var(--primary);
+            margin-top: 0;
+        }
+
+        label {
+            display: block;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        textarea, input[type="number"], select {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 250px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-top: 15px;
+            gap: 10px;
+        }
+
+        .checkbox-group input {
+            width: 20px;
+            height: 20px;
+        }
+
+        .checkbox-group label {
+            margin-top: 0;
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px 20px;
+            margin-top: 20px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            width: 100%;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--primary-light);
+            color: #000;
+        }
+
+        .info-box {
+            background-color: var(--input-bg);
+            border-left: 5px solid var(--primary-light);
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+        }
+
+        #notification-area {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 600px;
+            z-index: 1000;
+        }
+
+        .alert {
+            background-color: var(--error-bg);
+            color: var(--error-text);
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid var(--error-text);
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .alert button {
+            background: none;
+            border: none;
+            color: var(--error-text);
+            width: auto;
+            padding: 0;
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        .bingo-preview-container {
+            width: 100%;
+            height: 50vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: white;
+            padding: 20px;
+            box-sizing: border-box;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        table.bingo-card {
+            border-collapse: collapse;
+            margin: 0 auto;
+            table-layout: fixed;
+            background-color: white;
+            color: black;
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            aspect-ratio: 1 / 1;
+        }
+
+        table.bingo-card td {
+            border: 2px solid black;
+            text-align: center;
+            word-wrap: break-word;
+            padding: 5px;
+            overflow: hidden;
+        }
+
+        @media print {
+            body {
+                background: white;
+                color: black;
+                margin: 0;
+                padding: 0;
+            }
+            .no-print {
+                display: none !important;
+            }
+            #print-container {
+                display: flex !important;
+                flex-wrap: wrap;
+                width: 100%;
+            }
+            .bingo-card-wrapper {
+                box-sizing: border-box;
+                padding: 10px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+            table.bingo-card td {
+                border: 2px solid black;
+            }
+        }
+
+        #print-container {
+            display: none;
+        }
+
+        .layout-1 { width: 100%; height: 98vh; page-break-after: always; }
+        .layout-2 { width: 100%; height: 49vh; page-break-inside: avoid; }
+        .layout-4 { width: 50%; height: 49vh; page-break-inside: avoid; }
+        .layout-6 { width: 33.33%; height: 49vh; page-break-inside: avoid; }
+
+    </style>
+</head>
+<body>
+
+    <div id="notification-area"></div>
+
+    <div class="header-container no-print">
+        <h1>BINGO CARD GENERATOR</h1>
+    </div>
+
+    <div class="container no-print">
+        <div class="panel">
+            <h2>Settings</h2>
+
+            <div class="info-box">
+                <strong>How to save as PDF:</strong> This page works completely offline. When you click "Download PDF", it will open your computer's print menu. Simply change the "Destination" or "Printer" option to <strong>"Save as PDF"</strong>.
+            </div>
+
+            <div class="info-box">
+                <strong>Note about saving:</strong> The words you type below are automatically saved to this specific computer's memory. If you use a different laptop, the words will not be there.
+            </div>
+
+            <label for="words">BINGO Words (Type one option per line):</label>
+            <textarea id="words"></textarea>
+
+            <label for="gridSize">Grid Size (e.g., 3 for a 3x3 square):</label>
+            <input type="number" id="gridSize" value="5" min="2" max="10">
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="centerStar" checked>
+                <label for="centerStar">Allow central empty slot (★) - Odd grids only</label>
+            </div>
+
+            <label for="fontStyle">Font for cells:</label>
+            <select id="fontStyle">
+                <option value="Arial, sans-serif">Standard (Arial)</option>
+                <option value="'Courier New', Courier, monospace">Typewriter (Courier)</option>
+                <option value="'Times New Roman', serif">Formal (Times New Roman)</option>
+            </select>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="boldText">
+                <label for="boldText">Make text bold</label>
+            </div>
+
+            <label for="cardCount">How many grids to generate:</label>
+            <input type="number" id="cardCount" value="10" min="1">
+
+            <label for="pageLayout">Grids per page:</label>
+            <select id="pageLayout">
+                <option value="layout-1">1 per page (Portrait)</option>
+                <option value="layout-2">2 per page (Portrait, stacked)</option>
+                <option value="layout-4" selected>4 per page (Portrait, 2x2)</option>
+                <option value="layout-6">6 per page (Landscape, 3x2)</option>
+            </select>
+
+            <button onclick="downloadPDF()">Download PDF (Print Menu)</button>
+        </div>
+
+        <div class="panel">
+            <h2>Live Preview (One Card)</h2>
+            <p>This is how one of your cards will look. Change settings on the left to update this preview.</p>
+            <div class="bingo-preview-container" id="preview-container">
+            </div>
+        </div>
+    </div>
+
+    <div id="print-container"></div>
+
+    <script>
+        window.addEventListener('beforeunload', function (e) {
+            e.preventDefault();
+            e.returnValue = 'Are you sure you want to leave?';
+        });
+
+        const wordsInput = document.getElementById('words');
+        const gridSizeInput = document.getElementById('gridSize');
+        const centerStarInput = document.getElementById('centerStar');
+        const fontStyleInput = document.getElementById('fontStyle');
+        const boldTextInput = document.getElementById('boldText');
+        const previewContainer = document.getElementById('preview-container');
+
+        const defaultAnimals = "Badger\nBat\nBear\nCat\nCow\nDeer\nDog\nElephant\nFox\nFrog\nGiraffe\nGoat\nHorse\nLion\nMonkey\nMouse\nPig\nRabbit\nSheep\nTiger";
+
+        if (localStorage.getItem('bingoWords')) {
+            wordsInput.value = localStorage.getItem('bingoWords');
+        } else {
+            wordsInput.value = defaultAnimals;
+        }
+
+        wordsInput.addEventListener('input', () => {
+            localStorage.setItem('bingoWords', wordsInput.value);
+            updatePreview();
+        });
+
+        [gridSizeInput, centerStarInput, fontStyleInput, boldTextInput].forEach(el => {
+            el.addEventListener('input', updatePreview);
+            el.addEventListener('change', updatePreview);
+        });
+
+        function showError(message, fix) {
+            const area = document.getElementById('notification-area');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert';
+            alertDiv.innerHTML = `
+                <div>
+                    <strong>Error:</strong> ${message}<br>
+                    <em>How to fix:</em> ${fix}
+                </div>
+                <button onclick="this.parentElement.remove()">×</button>
+            `;
+            area.appendChild(alertDiv);
+
+            setTimeout(() => {
+                if(alertDiv.parentElement) alertDiv.remove();
+            }, 10000);
+        }
+
+        function getCleanWords() {
+            return wordsInput.value.split('\n')
+                .map(w => w.trim())
+                .filter(w => w.length > 0);
+        }
+
+        function updatePreview() {
+            const size = parseInt(gridSizeInput.value);
+
+            if (size % 2 === 0) {
+                centerStarInput.disabled = true;
+                centerStarInput.checked = false;
+            } else {
+                centerStarInput.disabled = false;
+            }
+
+            const tableData = generateSingleTableHTML(true);
+            if (tableData && tableData.html) {
+                previewContainer.innerHTML = tableData.html;
+            } else if (typeof tableData === 'string') {
+                previewContainer.innerHTML = tableData;
+            }
+        }
+
+        function generateSingleTableHTML(isPreview = false) {
+            const words = getCleanWords();
+            const size = parseInt(gridSizeInput.value);
+            const useCenterStar = centerStarInput.checked && (size % 2 !== 0);
+            const font = fontStyleInput.value;
+            const isBold = boldTextInput.checked;
+
+            let requiredCells = size * size;
+            if (useCenterStar) requiredCells -= 1;
+
+            if (words.length < requiredCells) {
+                if (isPreview) {
+                    return `<p style="color: red;">Not enough words! You need at least ${requiredCells} words for a ${size}x${size} grid.</p>`;
+                } else {
+                    throw new Error("Not enough options provided!");
+                }
+            }
+
+            const shuffled = [...words].sort(() => 0.5 - Math.random());
+            const selectedWords = shuffled.slice(0, requiredCells);
+
+            const centerIndex = Math.floor((size * size) / 2);
+
+            let html = `<table class="bingo-card" style="font-family: ${font}; ${isBold ? 'font-weight: bold;' : ''}">`;
+
+            let wordIndex = 0;
+            for (let row = 0; row < size; row++) {
+                html += '<tr>';
+                for (let col = 0; col < size; col++) {
+                    const currentIndex = (row * size) + col;
+                    html += `<td>`;
+
+                    if (useCenterStar && currentIndex === centerIndex) {
+                        html += `<span style="font-size: 2em; font-family: 'Courier New', Courier, monospace;">★</span>`;
+                    } else {
+                        html += selectedWords[wordIndex];
+                        wordIndex++;
+                    }
+
+                    html += `</td>`;
+                }
+                html += '</tr>';
+            }
+            html += `</table>`;
+
+            return { html: html, signature: selectedWords.sort().join('|') };
+        }
+
+        function downloadPDF() {
+            document.getElementById('notification-area').innerHTML = '';
+
+            const cardCount = parseInt(document.getElementById('cardCount').value);
+            const layoutClass = document.getElementById('pageLayout').value;
+            const printContainer = document.getElementById('print-container');
+
+            printContainer.innerHTML = '';
+            let styleTag = document.createElement('style');
+
+            if (layoutClass === 'layout-6') {
+                styleTag.innerHTML = `@media print { @page { size: landscape; margin: 0.5mm; } }`;
+            } else {
+                styleTag.innerHTML = `@media print { @page { size: portrait; margin: 0.5mm; } }`;
+            }
+            printContainer.appendChild(styleTag);
+
+            const generatedSignatures = new Set();
+            let retries = 0;
+            const maxRetries = 3;
+
+            for (let i = 0; i < cardCount; i++) {
+                try {
+                    let cardData = generateSingleTableHTML(false);
+
+                    while (generatedSignatures.has(cardData.signature) && retries < maxRetries) {
+                        retries++;
+                        cardData = generateSingleTableHTML(false);
+                    }
+
+                    if (generatedSignatures.has(cardData.signature)) {
+                        showError("Not enough options provided!", "You have requested too many unique grids for the number of words provided. Add more words or reduce the number of grids.");
+                        return;
+                    }
+
+                    generatedSignatures.add(cardData.signature);
+                    retries = 0;
+
+                    const wrapper = document.createElement('div');
+                    wrapper.className = `bingo-card-wrapper ${layoutClass}`;
+                    wrapper.innerHTML = cardData.html;
+                    printContainer.appendChild(wrapper);
+
+                } catch (e) {
+                    showError(e.message, "Please add more words to your list on the left to fill the grid.");
+                    return;
+                }
+            }
+
+            setTimeout(() => {
+                window.print();
+            }, 500);
+        }
+
+        updatePreview();
+    </script>
+</body>
+</html>
