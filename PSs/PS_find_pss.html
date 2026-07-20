@@ -97,7 +97,15 @@
     </div>
 
     <div id="results-area" class="settings-group pastel-yellow hidden" style="margin-top: 20px;">
-        <h2>Discovered Partial Solutions (Sorted by Minimax Regret)</h2>
+        <h2>Discovered Partial Solutions</h2>
+
+        <!-- NEW: Sorting Controls -->
+        <div id="sorting-controls" style="margin-bottom: 15px; display: none;">
+            <strong>Sort By: </strong>
+            <button class="small-btn" onclick="applySort('minimax')" style="background-color: #2c3e50;">Minimax Regret</button>
+            <span id="metric-sort-buttons"></span>
+        </div>
+
         <div id="ps-container"></div>
 
         <button onclick="downloadJSON()" style="background-color: #27ae60; margin-top: 20px;">Download Results (JSON)</button>
@@ -365,7 +373,7 @@
                     ind.objectives.forEach((val, idx) => ind.obj_dict[names[idx]] = val);
                 });
 
-                renderResults();
+                setupResultsUI(names);
             } catch (err) {
                 showError("Error during mining: " + err.message);
             } finally {
@@ -374,7 +382,39 @@
             }
         }
 
-        function renderResults() {
+
+function setupResultsUI(activeNames) {
+            const sortContainer = document.getElementById('metric-sort-buttons');
+            sortContainer.innerHTML = '';
+
+            // Create a sort button for each active metric
+            activeNames.forEach(name => {
+                let btn = document.createElement('button');
+                btn.className = 'small-btn';
+                btn.style.marginLeft = '5px';
+                btn.innerText = name;
+                btn.onclick = () => applySort(name);
+                sortContainer.appendChild(btn);
+            });
+
+            document.getElementById('sorting-controls').style.display = 'block';
+            document.getElementById('results-area').style.display = 'block';
+
+            // Apply default Minimax Regret (Z-score sum) sorting on first load
+            applySort('minimax');
+        }
+
+        function applySort(criteria) {
+            if (criteria === 'minimax') {
+                finalResults.sort((a, b) => a.z_sum - b.z_sum);
+            } else {
+                // criteria matches the metric name in obj_dict
+                finalResults.sort((a, b) => a.obj_dict[criteria] - b.obj_dict[criteria]);
+            }
+            renderResultsCards();
+        }
+
+        function renderResultsCards() {
             const container = document.getElementById('ps-container');
             container.innerHTML = '';
 
@@ -384,7 +424,8 @@
 
                 let psStr = ind.ps.map(x => x === -1 ? '*' : x).join(' ');
 
-                let details = `<strong>Minimax Worst Rank:</strong> ${ind.worst_rank} (Tie-break: ${ind.sum_ranks})<br>`;
+                // Removed the rank text output per your instructions
+                let details = '';
                 for (let key in ind.obj_dict) {
                     details += `[${key}: ${ind.obj_dict[key].toFixed(4)}] `;
                 }
@@ -395,11 +436,40 @@
                     <div class="action-row">
                         <button class="small-btn" onclick="fetchDescriptors(${index}, this)">Find Descriptors & Stats</button>
                     </div>
-                    <div class="descriptor-area" id="desc-${index}"></div>
+                    <div class="descriptor-area" id="desc-${index}">
+                        ${ind.descriptors ? renderCachedDescriptors(ind) : ''}
+                    </div>
                 `;
+
+                // If descriptors were already fetched before sorting, keep them visible
+                if (ind.descriptors) {
+                    div.querySelector('.action-row button').style.display = 'none';
+                    div.querySelector('.descriptor-area').style.display = 'block';
+                }
+
                 container.appendChild(div);
             });
-            document.getElementById('results-area').style.display = 'block';
+        }
+
+        // Helper to redraw descriptors if the user sorts the list after fetching them
+        function renderCachedDescriptors(ind) {
+            let {fMatch, fNotMatch} = getCache(ind.ps);
+            let mwu = obj_mwu_test(fMatch, fNotMatch);
+            let meanFit = obj_mean_fitness(fMatch) * -1;
+
+
+            let html = `<strong>Statistics:</strong><br>
+                        Sample Count: ${fMatch.length} | Mean Fitness: ${meanFit.toFixed(4)} | MWU p-value: ${mwu.toExponential(3)}<br><br>
+                        <strong>Extreme Descriptors (Threshold 10%):</strong><br>`;
+
+            if (ind.descriptors.length === 0) {
+                html += `<em>No descriptors passed the ECDF extremity threshold.</em>`;
+            } else {
+                ind.descriptors.forEach(d => {
+                    html += `<span class="descriptor-pill">${d.name} <br>Avg: ${d.average.toFixed(2)} (P: ${(d.percentile*100).toFixed(1)}%)</span>`;
+                });
+            }
+            return html;
         }
 
         function fetchDescriptors(index, btnElement) {

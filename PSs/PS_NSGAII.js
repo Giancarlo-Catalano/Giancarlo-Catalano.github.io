@@ -280,7 +280,7 @@ class PS_NSGAII {
             objectives: final_fits[idx]
         }));
 
-        return sort_by_worst_rank(best_individuals);
+        return sort_by_normalized_sum(best_individuals);
     }
 }
 
@@ -321,6 +321,35 @@ function sort_by_worst_rank(population_objects) {
         }
         return a.sum_ranks - b.sum_ranks;
     });
+}
+
+function sort_by_normalized_sum(population_objects) {
+    if (population_objects.length === 0) return [];
+    let num_objs = population_objects[0].objectives.length;
+    let N = population_objects.length;
+
+    // Initialize the z-score sum for each individual
+    population_objects.forEach(ind => ind.z_sum = 0);
+
+    for (let o = 0; o < num_objs; o++) {
+        let values = population_objects.map(p => p.objectives[o]);
+
+        // Calculate Mean
+        let mean = values.reduce((a, b) => a + b, 0) / N;
+
+        // Calculate Standard Deviation
+        let variance = values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / N;
+        let std = Math.sqrt(variance);
+
+        // Normalize and sum
+        for (let i = 0; i < N; i++) {
+            let z = (std === 0) ? 0 : (values[i] - mean) / std;
+            population_objects[i].z_sum += z;
+        }
+    }
+
+    // Sort ascending by the sum of normalized scores (since we are minimizing)
+    return population_objects.sort((a, b) => a.z_sum - b.z_sum);
 }
 
 // --- 5. Descriptor Finding (ECDF) ---
