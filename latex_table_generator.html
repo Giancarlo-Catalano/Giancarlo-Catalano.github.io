@@ -156,8 +156,8 @@
                 <div class="control-group">
                     <label for="wrap-select" style="font-weight: 600;">Text Wrapping:</label>
                     <select id="wrap-select">
-                        <option value="nowrap">No Wrap (Standard)</option>
-                        <option value="wrap">Auto-Wrap (\textwidth)</option>
+                        <option value="nowrap">No Wrap (Standard, column width adapts to text)</option>
+                        <option value="wrap">Auto-Wrap (\textwidth, columns have the same width)</option>
                     </select>
                 </div>
             </div>
@@ -205,7 +205,7 @@
         const alignSelect = document.getElementById('align-select');
         const wrapSelect = document.getElementById('wrap-select');
 
-        // Update on any input or setting change
+        // Update on any input or change
         const inputs = [inputArea, headerRowsInput, addCaptionCheckbox, addLabelCheckbox, escapeListInput, alignSelect, wrapSelect];
         inputs.forEach(el => el.addEventListener('input', generateLatex));
         inputs.forEach(el => el.addEventListener('change', generateLatex));
@@ -213,16 +213,16 @@
         function generateLatex() {
             const rawData = inputArea.value;
             if (!rawData.trim()) {
-                outputArea.textContent = "% Paste data above to generate table...";
+                outputArea.textContent = "Paste data above to generate table...";
                 return;
             }
 
-            // 1. Parse Data
+            // Parse table
             let rows = rawData.split(/\r\n|\n|\r/).filter(row => row.trim() !== "");
             if (rows.length === 0) return;
             const colCount = rows[0].split('\t').length;
 
-            // 2. Determine Environment and Column Formatting
+            // Determine formatting
             const alignVal = alignSelect.value;
             const isWrapping = wrapSelect.value === 'wrap';
 
@@ -240,7 +240,7 @@
 
             const tableCols = Array(colCount).fill(colDef).join("");
 
-            // 3. Start Building LaTeX
+            // Make Latex code
             let latex = "\\begin{table}[h]\n";
             latex += "    \\centering\n";
 
@@ -254,7 +254,7 @@
             latex += `    \\begin{${envName}}${envArgs}{${tableCols}}\n`;
             latex += "        \\toprule\n";
 
-            // 4. Process Rows
+
             const charsToEscape = escapeListInput.value;
             const headerCount = parseInt(headerRowsInput.value) || 0;
 
@@ -273,7 +273,6 @@
                 }
             });
 
-            // 5. Footer
             latex += "        \\bottomrule\n";
             latex += `    \\end{${envName}}\n`;
             latex += "\\end{table}";
@@ -285,6 +284,7 @@
             let result = "";
             for (let i = 0; i < text.length; i++) {
                 const char = text[i];
+                // add more conversions here if needed
                 if (charList.includes(char)) {
                     if (char === '\\') result += '\\textbackslash{}';
                     else if (char === '~') result += '\\textasciitilde{}';
