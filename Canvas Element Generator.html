@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas HTML Element Generator</title>
+    <style>
+        /* University Colours */
+        :root {
+            --light-green: #76b72a;
+            --dark-green: #006938;
+            --dark-blue: #003A3D;
+            --dark-magenta: #511535;
+            --bg-light: #f4f7f6;
+            --text-dark: #333333;
+            --white: #ffffff;
+            --error-red: #d32f2f;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+            margin: 0;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            border-bottom: 3px solid var(--light-green);
+            padding-bottom: 10px;
+        }
+
+        header img {
+            height: 40px;
+            background-color: #ffffff;
+            border-radius: 4px;
+            padding: 5px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 10px 15px;
+            border: none;
+            background-color: #ddd;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 5px 5px 0 0;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        .tab-btn:hover, .tab-btn:focus {
+            background-color: var(--light-green);
+            color: var(--white);
+            outline: 2px solid var(--dark-green);
+        }
+
+        .tab-btn.active {
+            background-color: var(--dark-green);
+            color: var(--white);
+        }
+
+        .tab-content {
+            display: none;
+            background-color: var(--white);
+            padding: 20px;
+            border-radius: 0 5px 5px 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Form Controls */
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: var(--dark-blue);
+        }
+
+        input[type="text"], textarea, select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        select {
+            cursor: pointer;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .color-picker-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        button.action-btn {
+            background-color: var(--dark-blue);
+            color: var(--white);
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        button.action-btn:hover {
+            background-color: var(--dark-magenta);
+        }
+
+        button.small-btn {
+            background-color: #e0e0e0;
+            color: var(--text-dark);
+            border: 1px solid #ccc;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 3px;
+            font-size: 0.9rem;
+        }
+
+        button.small-btn:hover {
+            background-color: #d0d0d0;
+        }
+
+        /* Preview & Export Area */
+        .output-section {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .pane {
+            flex: 1;
+            min-width: 300px;
+            background-color: var(--white);
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border-top: 4px solid var(--light-green);
+        }
+
+        .pane h2 {
+            margin-top: 0;
+            color: var(--dark-green);
+        }
+
+        #preview-area {
+            border: 1px dashed #ccc;
+            padding: 15px;
+            min-height: 150px;
+            border-radius: 4px;
+        }
+
+        #html-output {
+            width: 100%;
+            height: 150px;
+            font-family: monospace;
+            background-color: #2b2b2b;
+            color: #f8f8f2;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .copy-btn {
+            background-color: var(--light-green);
+            color: var(--dark-blue);
+            width: 100%;
+            margin-top: 10px;
+            padding: 15px;
+            font-size: 1.1rem;
+        }
+
+        .copy-btn:hover {
+            background-color: var(--dark-green);
+            color: var(--white);
+        }
+
+        /* Table Editor Styles */
+        .table-toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .table-editor-container {
+            overflow-x: auto;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            padding: 10px;
+            user-select: none; /* Prevents text selection when dragging cells */
+        }
+
+        .edit-table {
+            border-collapse: collapse;
+            width: auto;
+        }
+
+        .edit-table td, .edit-table th {
+            border: 1px solid #aaa;
+            padding: 0;
+            position: relative;
+            cursor: cell;
+        }
+
+        .edit-table td.selected {
+            box-shadow: inset 0 0 0 2px var(--dark-green), inset 0 0 0 1000px rgba(118, 183, 42, 0.2);
+        }
+
+        .edit-table input[type="text"] {
+            margin: 0;
+            border: none;
+            background: transparent;
+            min-width: 100px;
+            padding: 8px;
+            pointer-events: none; /* Let the td handle the mouse events for drag, input enabled on focus via JS */
+        }
+
+        .edit-table input[type="text"]:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.8);
+            pointer-events: auto;
+        }
+
+        /* Notifications */
+        #notification-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 9999;
+        }
+
+        .toast {
+            background-color: var(--dark-blue);
+            color: var(--white);
+            padding: 15px 20px;
+            border-radius: 5px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            opacity: 0;
+            transition: opacity 0.3s;
+            max-width: 300px;
+        }
+
+        .toast.error { background-color: var(--error-red); }
+        .toast.success { background-color: var(--dark-green); }
+
+        .settings-bar {
+            background: #eef7e5;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .controls-group {
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 4px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+            background-color: #fafafa;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1 style="margin: 0; color: var(--dark-blue);">Canvas Content Generator</h1>
+            <p style="margin: 5px 0 0 0;">Create interactive and colourful HTML elements for your Canvas pages.</p>
+        </div>
+        <img src="https://stir.sharepoint.com/sites/CMRDesign/Shared%20Documents/Design%20Work/Resources/Website%20Assets/Sub-branding/International%20Study%20Centre/Primary/primary-logo.png" alt="University Logo" onerror="this.style.display='none'">
+    </header>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="openTab(event, 'tab-instructions')">Instructions</button>
+        <button class="tab-btn" onclick="openTab(event, 'tab-hideshow')">Hide / Show Sections</button>
+        <button class="tab-btn" onclick="openTab(event, 'tab-boxes')">Coloured Boxes</button>
+        <button class="tab-btn" onclick="openTab(event, 'tab-tables')">Colourful Tables</button>
+    </div>
+
+    <!-- Instructions Tab -->
+    <div id="tab-instructions" class="tab-content active">
+        <h2>How to use this tool</h2>
+        <p>Canvas LMS allows you to create rich content, but sometimes the standard text editor is not enough. This tool generates the exact HTML code you need for interactive sections, warning boxes, and styled tables.</p>
+        <ol>
+            <li>Select the type of element you want to create using the tabs above.</li>
+            <li>Fill in your text and choose your styling options. The preview will update automatically at the bottom of the page.</li>
+            <li>When you are happy with the preview, click the <strong>"Copy HTML to Clipboard"</strong> button.</li>
+            <li>Go to your Canvas page and click <strong>"Edit"</strong>.</li>
+            <li>Switch to the HTML editor by clicking the <strong>"&lt;/&gt;"</strong> icon (usually at the bottom right of the text editor).</li>
+            <li>Paste your code in the desired location and save the Canvas page.</li>
+        </ol>
+        <p><strong>Note:</strong> You will not be able to edit the advanced styling of these elements using the normal Canvas text editor once pasted. If you need to make changes, it is easiest to recreate the element here and paste it again.</p>
+    </div>
+
+    <!-- Hide / Show Tab -->
+    <div id="tab-hideshow" class="tab-content">
+        <h2>Hide / Show Sections</h2>
+
+        <label for="hs-summary">Visible Title (Summary):</label>
+        <input type="text" id="hs-summary" placeholder="e.g. ▼ Click here for more information..." oninput="updateHideShow()">
+
+        <label for="hs-content">Hidden Content:</label>
+        <textarea id="hs-content" placeholder="Type the text you want to hide here..." oninput="updateHideShow()"></textarea>
+
+        <div class="color-picker-group">
+            <label for="hs-bg" style="margin: 0;">Background Colour:</label>
+            <input type="color" id="hs-bg" value="#f9f9f9" oninput="updateHideShow()">
+        </div>
+
+        <label style="display: flex; align-items: center; gap: 10px; font-weight: normal;">
+            <input type="checkbox" id="hs-badge" checked onchange="updateHideShow()">
+            Include "CLICK ME" badge
+        </label>
+    </div>
+
+    <!-- Coloured Boxes Tab -->
+    <div id="tab-boxes" class="tab-content">
+        <h2>Coloured Boxes</h2>
+
+        <label for="box-style">Box Style:</label>
+        <select id="box-style" onchange="handleBoxStyleChange()" style="width: auto; min-width: 200px;">
+            <option value="hint">Hint (Blue)</option>
+            <option value="warning">Warning (Yellow)</option>
+            <option value="strong">Strong Warning (Red)</option>
+            <option value="answer">Answer (Green)</option>
+            <option value="custom">Custom Colour...</option>
+        </select>
+
+        <div id="custom-color-container" class="color-picker-group" style="display: none; margin-top: -5px;">
+            <label for="box-custom-color" style="margin: 0; font-weight: normal;">Select Colour:</label>
+            <input type="color" id="box-custom-color" value="#e6f2f5" oninput="updateBox()">
+        </div>
+
+        <label for="box-content">Box Content:</label>
+        <textarea id="box-content" placeholder="Enter the message for your box here..." oninput="updateBox()"></textarea>
+    </div>
+
+    <!-- Colourful Tables Tab -->
+    <div id="tab-tables" class="tab-content">
+        <h2>Colourful Tables</h2>
+
+        <div class="table-toolbar">
+            <button class="action-btn" onclick="pasteTableData()">Load from Clipboard</button>
+            <button class="action-btn" onclick="clearTable()" style="background-color: var(--error-red);">Clear Table</button>
+        </div>
+
+        <div class="settings-bar">
+            <label style="font-weight: normal; margin:0; display:flex; align-items:center; gap:5px;">
+                <input type="checkbox" id="tbl-alternating" checked onchange="updateTableOutput()"> Use Alternating Colours
+            </label>
+            <input type="color" id="tbl-color-1" value="#eef7e5" oninput="updateTableOutput()">
+            <input type="color" id="tbl-color-2" value="#ffffff" oninput="updateTableOutput()">
+
+            <label style="margin-left: 15px; font-weight: normal; display:flex; align-items:center; gap:5px;">Border:
+                <select id="tbl-border" style="width: auto; margin: 0; padding: 5px;" onchange="updateTableOutput()">
+                    <option value="0">None</option>
+                    <option value="1" selected>1px</option>
+                    <option value="2">2px</option>
+                    <option value="3">3px</option>
+                    <option value="4">4px</option>
+                    <option value="5">5px</option>
+                </select>
+            </label>
+
+            <label style="margin-left: 15px; font-weight: normal; display:flex; align-items:center; gap:5px;">
+                <input type="checkbox" id="tbl-header" checked onchange="updateTableOutput()"> First Row is Header
+            </label>
+        </div>
+
+        <!-- Table Structure Controls -->
+        <div class="controls-group">
+            <span style="font-weight: bold; color: var(--dark-blue);">Structure:</span>
+
+            <label style="margin:0; font-weight: normal;">Row before:</label>
+            <select id="sel-insert-row" style="width:auto; margin:0; padding:5px;"></select>
+            <button class="small-btn" onclick="insertRowBefore()">Insert</button>
+
+            <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 5px;"></span>
+
+            <label style="margin:0; font-weight: normal;">Col before:</label>
+            <select id="sel-insert-col" style="width:auto; margin:0; padding:5px;"></select>
+            <button class="small-btn" onclick="insertColBefore()">Insert</button>
+
+            <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 5px;"></span>
+
+            <button class="small-btn" onclick="addRowAtEnd()">Add Row at End</button>
+            <button class="small-btn" onclick="addColAtEnd()">Add Col at End</button>
+        </div>
+
+        <!-- Selection Controls -->
+        <div class="controls-group">
+            <span style="font-weight: bold; color: var(--dark-blue);">Selection Actions:</span>
+
+            <label style="margin:0; font-weight: normal; margin-left:10px;">Cell Colour:</label>
+            <input type="color" id="cell-bg-color" value="#ffffff" onchange="applyColourToSelection()">
+            <button class="small-btn" onclick="document.getElementById('cell-bg-color').value='#ffffff'; applyColourToSelection()">Reset Colour</button>
+
+            <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 10px;"></span>
+
+            <button class="small-btn" style="color: var(--error-red); border-color: var(--error-red);" onclick="deleteSelectedRows()">Remove Selected Row(s)</button>
+            <button class="small-btn" style="color: var(--error-red); border-color: var(--error-red);" onclick="deleteSelectedCols()">Remove Selected Column(s)</button>
+        </div>
+
+        <div style="margin-bottom: 10px; font-size: 0.9rem; color: var(--dark-blue);">
+            <strong>Editing tip:</strong> Click and drag to select multiple cells. Click inside a cell to edit its text.
+        </div>
+
+        <div class="table-editor-container" id="table-editor-container">
+            <!-- Table Editor will be rendered here by JS -->
+        </div>
+    </div>
+
+    <!-- Output Section (Always visible) -->
+    <div class="output-section">
+        <div class="pane">
+            <h2>Preview</h2>
+            <div id="preview-area">
+                <p style="color: #777; text-align: center; margin-top: 50px;">Your preview will appear here.</p>
+            </div>
+        </div>
+        <div class="pane">
+            <h2>HTML Code</h2>
+            <textarea id="html-output" readonly placeholder="HTML code will be generated here..."></textarea>
+            <button class="action-btn copy-btn" id="copy-btn" onclick="copyHTML()">Copy HTML to Clipboard</button>
+        </div>
+    </div>
+
+    <div id="notification-container"></div>
+
+    <script>
+        // --- Core Application Logic ---
+
+        let currentTab = 'tab-instructions';
+        let tableData = [
+            [{text: "Header 1", bg: ""}, {text: "Header 2", bg: ""}],
+            [{text: "", bg: ""}, {text: "", bg: ""}],
+            [{text: "", bg: ""}, {text: "", bg: ""}]
+        ];
+
+        let selBounds = {r1: -1, c1: -1, r2: -1, c2: -1};
+        let isDragging = false;
+
+        // Window close warning
+        window.addEventListener('beforeunload', function (e) {
+            if (document.getElementById('html-output').value.trim() !== '') {
+                e.preventDefault();
+                e.returnValue = 'Are you sure you want to leave? Your unsaved work may be lost.';
+            }
+        });
+
+        // Tab Switching
+        function openTab(evt, tabName) {
+            let i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tab-content");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].classList.remove("active");
+            }
+            tablinks = document.getElementsByClassName("tab-btn");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].classList.remove("active");
+            }
+            document.getElementById(tabName).classList.add("active");
+            evt.currentTarget.classList.add("active");
+            currentTab = tabName;
+
+            if (tabName === 'tab-hideshow') updateHideShow();
+            else if (tabName === 'tab-boxes') updateBox();
+            else if (tabName === 'tab-tables') {
+                renderTableEditor();
+            } else {
+                document.getElementById('preview-area').innerHTML = '<p style="color: #777; text-align: center; margin-top: 50px;">Select a tool above to generate elements.</p>';
+                document.getElementById('html-output').value = '';
+            }
+        }
+
+        // Notification System
+        function showNotification(message, type = 'info') {
+            const container = document.getElementById('notification-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerText = message;
+            container.appendChild(toast);
+
+            setTimeout(() => toast.style.opacity = '1', 10);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // Copy HTML
+        function copyHTML() {
+            const output = document.getElementById('html-output');
+            if (!output.value) {
+                showNotification('Nothing to copy. Please create an element first.', 'error');
+                return;
+            }
+            output.select();
+            output.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(output.value).then(() => {
+                const btn = document.getElementById('copy-btn');
+                const originalText = btn.innerText;
+                btn.innerText = 'Copied!';
+                btn.style.backgroundColor = 'var(--dark-green)';
+                btn.style.color = 'var(--white)';
+                showNotification('HTML copied to clipboard!', 'success');
+
+                setTimeout(() => {
+                    btn.innerText = 'Copy HTML to Clipboard';
+                    btn.style.backgroundColor = 'var(--light-green)';
+                    btn.style.color = 'var(--dark-blue)';
+                }, 2000);
+            }).catch(err => {
+                showNotification('Failed to copy. Please copy the text manually.', 'error');
+            });
+        }
+
+        function getLuminance(r, g, b) {
+            let a = [r, g, b].map(function (v) {
+                v /= 255;
+                return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+            });
+            return a[0] * 0.2126 + a[1] * 0.7152 + a[2] * 0.0722;
+        }
+
+        function generateDarkerColour(hex) {
+            hex = hex.replace('#', '');
+            if(hex.length === 3) hex = hex.split('').map(c => c+c).join('');
+
+            let r = parseInt(hex.substring(0,2), 16);
+            let g = parseInt(hex.substring(2,4), 16);
+            let b = parseInt(hex.substring(4,6), 16);
+
+            let iterations = 0;
+            while(getLuminance(r, g, b) > 0.18 && iterations < 20) {
+                r = Math.floor(r * 0.85);
+                g = Math.floor(g * 0.85);
+                b = Math.floor(b * 0.85);
+                iterations++;
+            }
+
+            return "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1);
+        }
+
+        function setOutput(html) {
+            document.getElementById('preview-area').innerHTML = html;
+            document.getElementById('html-output').value = html;
+        }
+
+        // --- Hide / Show Generator ---
+        function updateHideShow() {
+            if(currentTab !== 'tab-hideshow') return;
+
+            const summaryText = document.getElementById('hs-summary').value || '▼ Click to expand';
+            const contentText = document.getElementById('hs-content').value || 'Hidden content goes here.';
+            const bgColour = document.getElementById('hs-bg').value;
+            const includeBadge = document.getElementById('hs-badge').checked;
+
+            const borderColour = generateDarkerColour(bgColour);
+
+            let badgeHtml = '';
+            if (includeBadge) {
+                badgeHtml = ` <span style="font-size: 0.7em; background-color: ${borderColour}; color: #ffffff; padding: 3px 8px; border-radius: 12px; margin-left: 8px; vertical-align: middle;">CLICK ME</span>`;
+            }
+
+            const contentParagraphs = contentText.split('\n')
+                .filter(p => p.trim() !== '')
+                .map(p => `<p>${p.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`)
+                .join('\n            ');
+
+            const safeSummary = summaryText.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+            const html = `<details style="margin-bottom: 15px; background-color: ${bgColour}; border-radius: 8px; border: 1px solid ${borderColour};">
+        <summary style="padding: 12px 15px; cursor: pointer; font-size: 1.1em; border-radius: 8px; list-style-type: none;"><strong>${safeSummary}</strong>${badgeHtml}</summary>
+        <div style="padding: 15px; background-color: #ffffff; border-top: 1px solid ${borderColour};">
+            ${contentParagraphs || '<p>Content</p>'}
+        </div>
+    </details>`;
+
+            setOutput(html);
+        }
+
+        // --- Coloured Boxes Generator ---
+        const boxStyles = {
+            hint: { bg: '#e6f2f5', border: '#003A3D' },
+            warning: { bg: '#fff3cd', border: '#ff9800' },
+            strong: { bg: '#f8cac6', border: '#d32f2f' },
+            answer: { bg: '#eef7e5', border: '#76b72a' }
+        };
+
+        function handleBoxStyleChange() {
+            const styleType = document.getElementById('box-style').value;
+            const customContainer = document.getElementById('custom-color-container');
+            if (styleType === 'custom') {
+                customContainer.style.display = 'flex';
+            } else {
+                customContainer.style.display = 'none';
+            }
+            updateBox();
+        }
+
+        function updateBox() {
+            if(currentTab !== 'tab-boxes') return;
+
+            const styleType = document.getElementById('box-style').value;
+            const contentText = document.getElementById('box-content').value || 'Box content goes here.';
+
+            let bgCol, borderCol;
+            if (styleType === 'custom') {
+                bgCol = document.getElementById('box-custom-color').value;
+                borderCol = generateDarkerColour(bgCol);
+            } else {
+                bgCol = boxStyles[styleType].bg;
+                borderCol = boxStyles[styleType].border;
+            }
+
+            const contentParagraphs = contentText.split('\n')
+                .filter(p => p.trim() !== '')
+                .map(p => `<p style="margin: 0 0 10px 0;">${p.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`)
+                .join('\n        ');
+
+            const html = `<div style="background-color: ${bgCol}; border-left: 5px solid ${borderCol}; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+        ${contentParagraphs || '<p style="margin:0;">Content</p>'}
+    </div>`;
+
+            setOutput(html);
+        }
+
+        // --- Tables Generator ---
+
+        function renderTableControls() {
+            let rowSelect = document.getElementById('sel-insert-row');
+            let colSelect = document.getElementById('sel-insert-col');
+            rowSelect.innerHTML = '';
+            colSelect.innerHTML = '';
+
+            for(let i=0; i<tableData.length; i++) {
+                rowSelect.innerHTML += `<option value="${i}">Row ${i+1}</option>`;
+            }
+
+            if(tableData.length > 0) {
+                for(let i=0; i<tableData[0].length; i++) {
+                    colSelect.innerHTML += `<option value="${i}">Column ${i+1}</option>`;
+                }
+            }
+        }
+
+        function renderTableEditor() {
+            if(currentTab !== 'tab-tables') return;
+            renderTableControls();
+
+            const container = document.getElementById('table-editor-container');
+            if(tableData.length === 0 || tableData[0].length === 0) {
+                container.innerHTML = '<p style="color:#777;">Table is empty. Use the buttons above to add rows and columns.</p>';
+                updateTableOutput();
+                return;
+            }
+
+            let html = '<table class="edit-table" id="visual-editor-table">';
+            for (let r = 0; r < tableData.length; r++) {
+                html += '<tr>';
+                for (let c = 0; c < tableData[r].length; c++) {
+                    const cell = tableData[r][c];
+                    const bgStyle = cell.bg ? `background-color:${cell.bg};` : '';
+
+                    html += `<td id="cell-${r}-${c}" style="${bgStyle}"
+                                onmousedown="startDrag(event, ${r}, ${c})"
+                                onmouseenter="dragOver(${r}, ${c})">
+                        <input type="text" id="input-${r}-${c}" value="${cell.text.replace(/"/g, '&quot;')}"
+                               oninput="updateCellData(${r}, ${c}, this.value)"
+                               onfocus="onInputFocus(${r}, ${c})">
+                    </td>`;
+                }
+                html += '</tr>';
+            }
+            html += '</table>';
+            container.innerHTML = html;
+
+            applySelectionUI();
+            updateTableOutput();
+        }
+
+        // --- Selection & Drag Logic ---
+        function startDrag(e, r, c) {
+            if (e.target.tagName.toLowerCase() === 'input') {
+                // If they managed to click exactly on the input and it wasn't focused, we focus it
+                e.target.style.pointerEvents = 'auto';
+                e.target.focus();
+                selBounds = {r1: r, c1: c, r2: r, c2: c};
+                applySelectionUI();
+                return;
+            }
+            isDragging = true;
+            selBounds = {r1: r, c1: c, r2: r, c2: c};
+            applySelectionUI();
+
+            // Defocus any active input
+            if(document.activeElement && document.activeElement.tagName === 'INPUT') {
+                document.activeElement.blur();
+            }
+        }
+
+        function dragOver(r, c) {
+            if (isDragging) {
+                selBounds.r2 = r;
+                selBounds.c2 = c;
+                applySelectionUI();
+            }
+        }
+
+        window.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                // Once dragging ends, we might want to let inputs be clickable again.
+                // We rely on the pointer-events rule in CSS to manage this elegantly.
+            }
+        });
+
+        function onInputFocus(r, c) {
+            selBounds = {r1: r, c1: c, r2: r, c2: c};
+            applySelectionUI();
+
+            // Set colour picker to cell's current bg
+            if(tableData[r] && tableData[r][c]) {
+                document.getElementById('cell-bg-color').value = tableData[r][c].bg || '#ffffff';
+            }
+        }
+
+        function applySelectionUI() {
+            if(tableData.length === 0) return;
+            const minR = Math.min(selBounds.r1, selBounds.r2);
+            const maxR = Math.max(selBounds.r1, selBounds.r2);
+            const minC = Math.min(selBounds.c1, selBounds.c2);
+            const maxC = Math.max(selBounds.c1, selBounds.c2);
+
+            for (let r = 0; r < tableData.length; r++) {
+                for (let c = 0; c < tableData[r].length; c++) {
+                    const td = document.getElementById(`cell-${r}-${c}`);
+                    if (!td) continue;
+
+                    if (r >= minR && r <= maxR && c >= minC && c <= maxC) {
+                        td.classList.add('selected');
+                    } else {
+                        td.classList.remove('selected');
+                        // Ensure input pointer events revert on non-selected elements
+                        const inp = document.getElementById(`input-${r}-${c}`);
+                        if(inp) inp.style.pointerEvents = 'none';
+                    }
+                }
+            }
+        }
+
+        function getSelectionBounds() {
+            if(selBounds.r1 === -1) return null;
+            return {
+                minR: Math.min(selBounds.r1, selBounds.r2),
+                maxR: Math.max(selBounds.r1, selBounds.r2),
+                minC: Math.min(selBounds.c1, selBounds.c2),
+                maxC: Math.max(selBounds.c1, selBounds.c2)
+            };
+        }
+
+        // --- Editor Actions ---
+        function updateCellData(r, c, val) {
+            tableData[r][c].text = val;
+            updateTableOutput();
+        }
+
+        function applyColourToSelection() {
+            const b = getSelectionBounds();
+            if (!b) {
+                showNotification("Please select one or more cells first.", "error");
+                return;
+            }
+            const color = document.getElementById('cell-bg-color').value;
+            const bgValue = (color.toLowerCase() === '#ffffff') ? "" : color;
+
+            for(let r = b.minR; r <= b.maxR; r++) {
+                for(let c = b.minC; c <= b.maxC; c++) {
+                    tableData[r][c].bg = bgValue;
+                }
+            }
+            renderTableEditor();
+        }
+
+        function insertRowBefore() {
+            const sel = document.getElementById('sel-insert-row');
+            if(!sel || sel.value === "") return;
+            const idx = parseInt(sel.value);
+            const cols = (tableData.length > 0) ? tableData[0].length : 1;
+            const newRow = Array(cols).fill(null).map(() => ({text: "", bg: ""}));
+            tableData.splice(idx, 0, newRow);
+            selBounds = {r1: -1, c1: -1, r2: -1, c2: -1}; // reset selection
+            renderTableEditor();
+        }
+
+        function insertColBefore() {
+            const sel = document.getElementById('sel-insert-col');
+            if(!sel || sel.value === "") return;
+            const idx = parseInt(sel.value);
+            if(tableData.length === 0) {
+                tableData.push([{text: "", bg: ""}]);
+            } else {
+                for (let r = 0; r < tableData.length; r++) {
+                    tableData[r].splice(idx, 0, {text: "", bg: ""});
+                }
+            }
+            selBounds = {r1: -1, c1: -1, r2: -1, c2: -1};
+            renderTableEditor();
+        }
+
+        function addRowAtEnd() {
+            const cols = (tableData.length > 0) ? tableData[0].length : 1;
+            const newRow = Array(cols).fill(null).map(() => ({text: "", bg: ""}));
+            tableData.push(newRow);
+            renderTableEditor();
+        }
+
+        function addColAtEnd() {
+            if(tableData.length === 0) {
+                tableData.push([{text: "", bg: ""}]);
+            } else {
+                for (let r = 0; r < tableData.length; r++) {
+                    tableData[r].push({text: "", bg: ""});
+                }
+            }
+            renderTableEditor();
+        }
+
+        function deleteSelectedRows() {
+            const b = getSelectionBounds();
+            if(!b) {
+                showNotification("No rows selected.", "error"); return;
+            }
+            const count = b.maxR - b.minR + 1;
+            tableData.splice(b.minR, count);
+            selBounds = {r1: -1, c1: -1, r2: -1, c2: -1};
+            renderTableEditor();
+        }
+
+        function deleteSelectedCols() {
+            const b = getSelectionBounds();
+            if(!b) {
+                showNotification("No columns selected.", "error"); return;
+            }
+            const count = b.maxC - b.minC + 1;
+            for (let r = 0; r < tableData.length; r++) {
+                tableData[r].splice(b.minC, count);
+            }
+            // If all columns deleted, clear table
+            if(tableData.length > 0 && tableData[0].length === 0) {
+                tableData = [];
+            }
+            selBounds = {r1: -1, c1: -1, r2: -1, c2: -1};
+            renderTableEditor();
+        }
+
+        function clearTable() {
+            if(confirm("Are you sure you want to clear the entire table?")) {
+                tableData = [
+                    [{text: "Header 1", bg: ""}, {text: "Header 2", bg: ""}],
+                    [{text: "", bg: ""}, {text: "", bg: ""}],
+                    [{text: "", bg: ""}, {text: "", bg: ""}]
+                ];
+                selBounds = {r1: -1, c1: -1, r2: -1, c2: -1};
+                renderTableEditor();
+            }
+        }
+
+        async function pasteTableData() {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (!text || text.trim() === '') throw new Error("Clipboard is empty.");
+
+                const rows = text.trim().split(/\r?\n/);
+                const newData = [];
+                let maxCols = 0;
+
+                for (const row of rows) {
+                    const cols = row.split('\t');
+                    if (cols.length > maxCols) maxCols = cols.length;
+                    newData.push(cols.map(c => ({text: c.trim(), bg: ""})));
+                }
+
+                for (const row of newData) {
+                    while (row.length < maxCols) {
+                        row.push({text: "", bg: ""});
+                    }
+                }
+
+                if (newData.length > 0) {
+                    tableData = newData;
+                    selBounds = {r1:-1, c1:-1, r2:-1, c2:-1};
+                    renderTableEditor();
+                    showNotification("Table loaded from clipboard!", "success");
+                } else {
+                    throw new Error("Could not parse table data.");
+                }
+
+            } catch (err) {
+                console.error(err);
+                showNotification("Failed to read table from clipboard. Make sure you have copied cells from Excel/Sheets. Note: Your browser might require you to allow clipboard permissions.", "error");
+            }
+        }
+
+        function updateTableOutput() {
+            if(currentTab !== 'tab-tables') return;
+            if(tableData.length === 0 || tableData[0].length === 0) {
+                setOutput("");
+                return;
+            }
+
+            const useAlt = document.getElementById('tbl-alternating').checked;
+            const col1 = document.getElementById('tbl-color-1').value;
+            const col2 = document.getElementById('tbl-color-2').value;
+            const borderThick = document.getElementById('tbl-border').value;
+            const hasHeader = document.getElementById('tbl-header').checked;
+
+            let html = `<table style="width: 100%; border-collapse: collapse; text-align: left;" border="${borderThick}">\n`;
+
+            if (hasHeader && tableData.length > 0) {
+                html += `    <thead>\n        <tr style="background-color: var(--dark-green, #003a3d); color: #ffffff;">\n`;
+                for (let c = 0; c < tableData[0].length; c++) {
+                    const cell = tableData[0][c];
+                    const safeText = cell.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                    html += `            <th style="padding: 10px; border: ${borderThick}px solid #ccc;">${safeText || '&nbsp;'}</th>\n`;
+                }
+                html += `        </tr>\n    </thead>\n`;
+            }
+
+            html += `    <tbody>\n`;
+
+            const startRow = hasHeader ? 1 : 0;
+            for (let r = startRow; r < tableData.length; r++) {
+                html += `        <tr>\n`;
+                for (let c = 0; c < tableData[r].length; c++) {
+                    const cell = tableData[r][c];
+
+                    let bg = "";
+                    if (cell.bg) {
+                        bg = cell.bg;
+                    } else if (useAlt) {
+                        bg = (r % 2 === (hasHeader ? 1 : 0)) ? col1 : col2;
+                    } else {
+                        bg = "#ffffff";
+                    }
+
+                    const safeText = cell.text.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+                    html += `            <td style="padding: 10px; background-color: ${bg}; border: ${borderThick}px solid #ccc;">${safeText || '&nbsp;'}</td>\n`;
+                }
+                html += `        </tr>\n`;
+            }
+
+            html += `    </tbody>\n</table>`;
+            setOutput(html);
+        }
+
+        // Init
+        window.onload = () => {
+            document.getElementById('preview-area').innerHTML = '<p style="color: #777; text-align: center; margin-top: 50px;">Select a tool above to generate elements.</p>';
+        };
+
+    </script>
+</body>
+</html>
