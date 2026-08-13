@@ -35,16 +35,11 @@
             padding-bottom: 10px;
         }
 
-        header .header-text {
-            flex-grow: 1;
-        }
-
         header img {
             height: 40px;
-            background-color: var(--white);
+            background-color: #ffffff;
             border-radius: 4px;
             padding: 5px;
-            margin-left: 15px;
         }
 
         /* Tabs */
@@ -108,6 +103,10 @@
             font-family: inherit;
         }
 
+        select {
+            cursor: pointer;
+        }
+
         textarea {
             resize: vertical;
             min-height: 100px;
@@ -135,30 +134,23 @@
             background-color: var(--dark-magenta);
         }
 
-        button.action-btn-small {
-            background-color: var(--dark-blue);
-            color: var(--white);
-            border: none;
+        button.small-btn {
+            background-color: #e0e0e0;
+            color: var(--text-dark);
+            border: 1px solid #ccc;
             padding: 5px 10px;
             cursor: pointer;
-            border-radius: 4px;
+            border-radius: 3px;
             font-size: 0.9rem;
         }
 
-        button.action-btn-small:hover {
-            background-color: var(--dark-magenta);
-        }
-
-        button.action-btn-small.delete {
-            background-color: var(--error-red);
-        }
-        button.action-btn-small.delete:hover {
-            background-color: #a02020;
+        button.small-btn:hover {
+            background-color: #d0d0d0;
         }
 
         /* Preview & Export Area */
         .output-section {
-            display: flex;
+            display: none; /* Hidden on init because Instructions is active */
             flex-wrap: wrap;
             gap: 20px;
             margin-top: 20px;
@@ -226,26 +218,38 @@
             margin-bottom: 15px;
             border: 1px solid #ddd;
             padding: 10px;
-            background-color: var(--white);
+            user-select: none;
         }
 
-        .edit-table td {
+        .edit-table {
+            border-collapse: collapse;
+            width: auto;
+        }
+
+        .edit-table td, .edit-table th {
             border: 1px solid #aaa;
-            padding: 10px;
-            min-width: 80px;
+            padding: 0;
+            position: relative;
             cursor: cell;
-            transition: outline 0.1s;
-        }
-
-        .edit-table td:focus {
-            outline: 2px solid var(--dark-green);
-            background-color: #fff !important;
+            transition: background-color 0.2s;
         }
 
         .edit-table td.selected {
-            outline: 2px solid var(--dark-blue);
-            outline-offset: -2px;
-            box-shadow: inset 0 0 0 1000px rgba(118, 183, 42, 0.2);
+            box-shadow: inset 0 0 0 2px var(--dark-green), inset 0 0 0 1000px rgba(118, 183, 42, 0.2);
+        }
+
+        .edit-table input[type="text"] {
+            margin: 0;
+            border: none;
+            background: transparent;
+            min-width: 100px;
+            padding: 8px;
+            pointer-events: auto; /* Allow direct clicks immediately */
+        }
+
+        .edit-table input[type="text"]:focus {
+            outline: none;
+            background: rgba(255, 255, 255, 0.8);
         }
 
         /* Notifications */
@@ -283,12 +287,24 @@
             gap: 15px;
             flex-wrap: wrap;
         }
+
+        .controls-group {
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 4px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+            background-color: #fafafa;
+        }
     </style>
 </head>
 <body>
 
     <header>
-        <div class="header-text">
+        <div>
             <h1 style="margin: 0; color: var(--dark-blue);">Canvas Content Generator</h1>
             <p style="margin: 5px 0 0 0;">Create interactive and colourful HTML elements for your Canvas pages.</p>
         </div>
@@ -304,17 +320,41 @@
 
     <!-- Instructions Tab -->
     <div id="tab-instructions" class="tab-content active">
-        <h2>How to use this tool</h2>
-        <p>Canvas LMS allows you to create rich content, but sometimes the standard text editor is not enough. This tool generates the exact HTML code you need for interactive sections, warning boxes, and styled tables.</p>
-        <ol>
-            <li>Select the type of element you want to create using the tabs above.</li>
-            <li>Fill in your text and choose your styling options. The preview will update automatically at the bottom of the page.</li>
-            <li>When you are happy with the preview, click the <strong>"Copy HTML to Clipboard"</strong> button.</li>
-            <li>Go to your Canvas page and click <strong>"Edit"</strong>.</li>
-            <li>Switch to the HTML editor by clicking the <strong>"&lt;/&gt;"</strong> icon (usually at the bottom right of the text editor).</li>
-            <li>Paste your code in the desired location and save the Canvas page.</li>
-        </ol>
-        <p><strong>Note:</strong> You will not be able to edit the advanced styling of these elements using the normal Canvas text editor once pasted. If you need to make changes, it is easiest to recreate the element here and paste it again.</p>
+        <h2>What you can create</h2>
+        <p>This tool allows you to build engaging, interactive HTML elements that standard Canvas text editors don't support. Once generated, simply copy the HTML and paste it into the HTML view of your Canvas page.</p>
+
+        <h3 style="margin-top: 30px; color: var(--dark-blue);">Examples of Generated Content:</h3>
+
+        <div style="background-color: #e6f2f5; border-left: 5px solid #003A3D; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <p style="margin: 0 0 10px 0;"><strong>Coloured Hint Box</strong></p>
+            <p style="margin: 0;">Perfect for highlighting important notes, required reading, or guiding students.</p>
+        </div>
+
+        <details style="margin-bottom: 20px; background-color: #f9f9f9; border-radius: 8px; border: 1px solid #dcdcdc;">
+            <summary style="padding: 12px 15px; cursor: pointer; font-size: 1.1em; border-radius: 8px; list-style-type: none;"><strong>▼ Week 1 Resources (Hide/Show)</strong> <span style="font-size: 0.7em; background-color: #7b7b7b; color: #ffffff; padding: 3px 8px; border-radius: 12px; margin-left: 8px; vertical-align: middle;">CLICK ME</span></summary>
+            <div style="padding: 15px; background-color: #ffffff; border-top: 1px solid #dcdcdc;">
+                <p>Keep your Canvas pages clean by hiding long lists of links, optional reading, or assignment rubrics inside these interactive drop-downs.</p>
+            </div>
+        </details>
+
+        <table style="width: 100%; border-collapse: collapse; text-align: left; margin-bottom: 20px;" border="1">
+            <thead>
+                <tr>
+                    <th style="padding: 10px; background-color: #c7dbb1; border: 1px solid #ccc;">Date</th>
+                    <th style="padding: 10px; background-color: #c7dbb1; border: 1px solid #ccc;">Topic</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="padding: 10px; background-color: #ffffff; border: 1px solid #ccc;">Monday</td>
+                    <td style="padding: 10px; background-color: #ffffff; border: 1px solid #ccc;">Introduction to Module</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; background-color: #eef7e5; border: 1px solid #ccc;">Wednesday</td>
+                    <td style="padding: 10px; background-color: #eef7e5; border: 1px solid #ccc;">Core Principles</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 
     <!-- Hide / Show Tab -->
@@ -322,7 +362,7 @@
         <h2>Hide / Show Sections</h2>
 
         <label for="hs-summary">Visible Title (Summary):</label>
-        <input type="text" id="hs-summary" placeholder="e.g. Click here for more information..." oninput="updateHideShow()">
+        <input type="text" id="hs-summary" placeholder="e.g. ▼ Click here for more information..." oninput="updateHideShow()">
 
         <label for="hs-content">Hidden Content:</label>
         <textarea id="hs-content" placeholder="Type the text you want to hide here..." oninput="updateHideShow()"></textarea>
@@ -342,17 +382,17 @@
     <div id="tab-boxes" class="tab-content">
         <h2>Coloured Boxes</h2>
 
-        <label for="box-style-select">Box Style:</label>
-        <select id="box-style-select" onchange="updateBoxStyle()" style="max-width: 300px;">
+        <label for="box-style">Box Style:</label>
+        <select id="box-style" onchange="handleBoxStyleChange()" style="width: auto; min-width: 200px;">
             <option value="hint">Hint (Blue)</option>
             <option value="warning">Warning (Yellow)</option>
             <option value="strong">Strong Warning (Red)</option>
             <option value="answer">Answer (Green)</option>
-            <option value="custom">Custom</option>
+            <option value="custom">Custom Colour...</option>
         </select>
 
-        <div id="custom-color-container" style="display: none; align-items: center; gap: 10px; margin-bottom: 15px;">
-            <label style="margin: 0;">Custom Background Colour:</label>
+        <div id="custom-color-container" class="color-picker-group" style="display: none; margin-top: -5px;">
+            <label for="box-custom-color" style="margin: 0; font-weight: normal;">Select Colour:</label>
             <input type="color" id="box-custom-color" value="#e6f2f5" oninput="updateBox()">
         </div>
 
@@ -365,16 +405,20 @@
         <h2>Colourful Tables</h2>
 
         <div class="table-toolbar">
-            <button class="action-btn" onclick="pasteTableData()">Load from Clipboard (Excel/Sheets)</button>
-            <button class="action-btn" onclick="clearTable()" style="background-color: var(--error-red);">Clear Table</button>
+            <button class="action-btn" onclick="pasteTableData()">Load from Clipboard</button>
+            <button class="action-btn" style="background-color: #607d8b;" onclick="undo()">Undo (Ctrl+Z)</button>
+            <button class="action-btn" onclick="clearTable()" style="background-color: var(--error-red); margin-left: auto;">Clear Table</button>
         </div>
 
         <div class="settings-bar">
-            <label style="font-weight: normal; margin:0;"><input type="checkbox" id="tbl-alternating" checked onchange="updateTableOutput()"> Use Alternating Colours</label>
-            <input type="color" id="tbl-color-1" value="#eef7e5" title="Row Colour 1" oninput="updateTableOutput()">
-            <input type="color" id="tbl-color-2" value="#ffffff" title="Row Colour 2" oninput="updateTableOutput()">
+            <!-- Alternating colours off by default -->
+            <label style="font-weight: normal; margin:0; display:flex; align-items:center; gap:5px;">
+                <input type="checkbox" id="tbl-alternating" onchange="updateTableOutput(); renderTableEditor();"> Use Alternating Colours
+            </label>
+            <input type="color" id="tbl-color-1" value="#eef7e5" oninput="updateTableOutput(); renderTableEditor();">
+            <input type="color" id="tbl-color-2" value="#ffffff" oninput="updateTableOutput(); renderTableEditor();">
 
-            <label style="margin-left: 15px; font-weight: normal;">Border:
+            <label style="margin-left: 15px; font-weight: normal; display:flex; align-items:center; gap:5px;">Border:
                 <select id="tbl-border" style="width: auto; margin: 0; padding: 5px;" onchange="updateTableOutput()">
                     <option value="0">None</option>
                     <option value="1" selected>1px</option>
@@ -385,45 +429,47 @@
                 </select>
             </label>
 
-            <label style="margin-left: 15px; font-weight: normal;"><input type="checkbox" id="tbl-header" checked onchange="updateTableOutput()"> First Row is Header</label>
+            <label style="margin-left: 15px; font-weight: normal; display:flex; align-items:center; gap:5px;">
+                <input type="checkbox" id="tbl-header" checked onchange="updateTableOutput(); renderTableEditor();"> First Row is Header
+            </label>
         </div>
 
-        <div style="background: #f4f7f6; padding: 15px; border-radius: 5px; margin-bottom: 15px; display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
-            <!-- Cell Styling & Deletion -->
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <label style="margin: 0; font-size: 0.9rem;">Selected Cell Colour:</label>
-                    <input type="color" id="cell-bg-color" value="#ffffff">
-                    <button class="action-btn-small" onclick="applyColourToSelectedCells()">Apply</button>
-                    <button class="action-btn-small" onclick="document.getElementById('cell-bg-color').value='#ffffff'; applyColourToSelectedCells()">Clear</button>
-                </div>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button class="action-btn-small delete" onclick="removeSelectedRows()">Remove Selected Row(s)</button>
-                    <button class="action-btn-small delete" onclick="removeSelectedCols()">Remove Selected Column(s)</button>
-                </div>
-            </div>
+        <!-- Table Structure Controls -->
+        <div class="controls-group">
+            <span style="font-weight: bold; color: var(--dark-blue);">Structure:</span>
 
-            <!-- Insertions -->
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <label style="margin: 0; font-size: 0.9rem; min-width: 120px;">Insert Row Before:</label>
-                    <select id="insert-row-index" style="margin:0; width: auto; padding: 5px;"></select>
-                    <button class="action-btn-small" onclick="insertRowBefore()">Insert</button>
-                </div>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <label style="margin: 0; font-size: 0.9rem; min-width: 120px;">Insert Col Before:</label>
-                    <select id="insert-col-index" style="margin:0; width: auto; padding: 5px;"></select>
-                    <button class="action-btn-small" onclick="insertColBefore()">Insert</button>
-                </div>
-                <div style="display: flex; gap: 10px; margin-top: 5px; flex-wrap: wrap;">
-                    <button class="action-btn-small" onclick="addRowAtEnd()">Add Row at End</button>
-                    <button class="action-btn-small" onclick="addColAtEnd()">Add Column at End</button>
-                </div>
-            </div>
+            <label style="margin:0; font-weight: normal;">Row before:</label>
+            <select id="sel-insert-row" style="width:auto; margin:0; padding:5px;"></select>
+            <button class="small-btn" onclick="insertRowBefore()">Insert</button>
+
+            <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 5px;"></span>
+
+            <label style="margin:0; font-weight: normal;">Col before:</label>
+            <select id="sel-insert-col" style="width:auto; margin:0; padding:5px;"></select>
+            <button class="small-btn" onclick="insertColBefore()">Insert</button>
+
+            <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 5px;"></span>
+
+            <button class="small-btn" onclick="addRowAtEnd()">Add Row at End</button>
+            <button class="small-btn" onclick="addColAtEnd()">Add Col at End</button>
+        </div>
+
+        <!-- Selection Controls -->
+        <div class="controls-group">
+            <span style="font-weight: bold; color: var(--dark-blue);">Selection Actions:</span>
+
+            <label style="margin:0; font-weight: normal; margin-left:10px;">Cell Colour:</label>
+            <input type="color" id="cell-bg-color" value="#ffffff" onchange="applyColourToSelection()">
+            <button class="small-btn" onclick="document.getElementById('cell-bg-color').value='#ffffff'; applyColourToSelection()">Reset Colour</button>
+
+            <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 10px;"></span>
+
+            <button class="small-btn" style="color: var(--error-red); border-color: var(--error-red);" onclick="deleteSelectedRows()">Remove Selected Row(s)</button>
+            <button class="small-btn" style="color: var(--error-red); border-color: var(--error-red);" onclick="deleteSelectedCols()">Remove Selected Column(s)</button>
         </div>
 
         <div style="margin-bottom: 10px; font-size: 0.9rem; color: var(--dark-blue);">
-            <strong>Editing tip:</strong> Click a cell to type. Click and drag to select multiple cells.
+            <strong>Editing tip:</strong> Single click to type. Click and drag text, then move beyond the cell to select multiple cells.
         </div>
 
         <div class="table-editor-container" id="table-editor-container">
@@ -431,8 +477,8 @@
         </div>
     </div>
 
-    <!-- Output Section (Always visible) -->
-    <div class="output-section">
+    <!-- Output Section -->
+    <div class="output-section" id="global-output-section">
         <div class="pane">
             <h2>Preview</h2>
             <div id="preview-area">
@@ -452,15 +498,44 @@
         // --- Core Application Logic ---
 
         let currentTab = 'tab-instructions';
+
+        // Initialised entirely clear as requested
         let tableData = [
             [{text: "", bg: ""}, {text: "", bg: ""}],
             [{text: "", bg: ""}, {text: "", bg: ""}],
             [{text: "", bg: ""}, {text: "", bg: ""}]
         ];
 
-        let selStart = {r: -1, c: -1};
-        let selEnd = {r: -1, c: -1};
+        let selBounds = {r1: -1, c1: -1, r2: -1, c2: -1};
         let isDragging = false;
+
+        // Undo History Setup
+        let historyStack = [];
+        let cellSnapshot = null; // Used to track text changes between focus/blur
+
+        function saveState() {
+            historyStack.push(JSON.parse(JSON.stringify(tableData)));
+            if (historyStack.length > 50) historyStack.shift();
+        }
+
+        function undo() {
+            if (historyStack.length > 0) {
+                tableData = historyStack.pop();
+                selBounds = {r1: -1, c1: -1, r2: -1, c2: -1};
+                renderTableEditor();
+            } else {
+                showNotification("Nothing to undo", "info");
+            }
+        }
+
+        window.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                if (currentTab === 'tab-tables') {
+                    e.preventDefault();
+                    undo();
+                }
+            }
+        });
 
         // Window close warning
         window.addEventListener('beforeunload', function (e) {
@@ -485,14 +560,16 @@
             evt.currentTarget.classList.add("active");
             currentTab = tabName;
 
-            // Trigger refresh based on active tab
+            // Toggle Output section visibility based on tab
+            if (tabName === 'tab-instructions') {
+                document.getElementById('global-output-section').style.display = 'none';
+            } else {
+                document.getElementById('global-output-section').style.display = 'flex';
+            }
+
             if (tabName === 'tab-hideshow') updateHideShow();
             else if (tabName === 'tab-boxes') updateBox();
             else if (tabName === 'tab-tables') renderTableEditor();
-            else {
-                document.getElementById('preview-area').innerHTML = '<p style="color: #777; text-align: center; margin-top: 50px;">Select a tool above to generate elements.</p>';
-                document.getElementById('html-output').value = '';
-            }
         }
 
         // Notification System
@@ -549,12 +626,15 @@
             hex = hex.replace('#', '');
             if(hex.length === 3) hex = hex.split('').map(c => c+c).join('');
 
+            if (!hex) return "#ffffff"; // fallback
+
             let r = parseInt(hex.substring(0,2), 16);
             let g = parseInt(hex.substring(2,4), 16);
             let b = parseInt(hex.substring(4,6), 16);
 
             let iterations = 0;
-            while(getLuminance(r, g, b) > 0.18 && iterations < 20) {
+            // Target a darker luminance for headers
+            while(getLuminance(r, g, b) > 0.15 && iterations < 20) {
                 r = Math.floor(r * 0.85);
                 g = Math.floor(g * 0.85);
                 b = Math.floor(b * 0.85);
@@ -610,10 +690,9 @@
             answer: { bg: '#eef7e5', border: '#76b72a' }
         };
 
-        function updateBoxStyle() {
-            const styleType = document.getElementById('box-style-select').value;
+        function handleBoxStyleChange() {
+            const styleType = document.getElementById('box-style').value;
             const customContainer = document.getElementById('custom-color-container');
-
             if (styleType === 'custom') {
                 customContainer.style.display = 'flex';
             } else {
@@ -625,7 +704,7 @@
         function updateBox() {
             if(currentTab !== 'tab-boxes') return;
 
-            const styleType = document.getElementById('box-style-select').value;
+            const styleType = document.getElementById('box-style').value;
             const contentText = document.getElementById('box-content').value || 'Box content goes here.';
 
             let bgCol, borderCol;
@@ -651,214 +730,319 @@
 
         // --- Tables Generator ---
 
+        function renderTableControls() {
+            let rowSelect = document.getElementById('sel-insert-row');
+            let colSelect = document.getElementById('sel-insert-col');
+            rowSelect.innerHTML = '';
+            colSelect.innerHTML = '';
+
+            for(let i=0; i<tableData.length; i++) {
+                rowSelect.innerHTML += `<option value="${i}">Row ${i+1}</option>`;
+            }
+
+            if(tableData.length > 0) {
+                for(let i=0; i<tableData[0].length; i++) {
+                    colSelect.innerHTML += `<option value="${i}">Column ${i+1}</option>`;
+                }
+            }
+        }
+
         function renderTableEditor() {
             if(currentTab !== 'tab-tables') return;
+            renderTableControls();
+
             const container = document.getElementById('table-editor-container');
+            if(tableData.length === 0 || tableData[0].length === 0) {
+                container.innerHTML = '<p style="color:#777;">Table is empty. Use the buttons above to add rows and columns.</p>';
+                updateTableOutput();
+                return;
+            }
 
-            let html = '<table class="edit-table" style="width: 100%; border-collapse: collapse;">';
+            const useAlt = document.getElementById('tbl-alternating').checked;
+            const col1 = document.getElementById('tbl-color-1').value;
+            const col2 = document.getElementById('tbl-color-2').value;
+            const hasHeader = document.getElementById('tbl-header').checked;
+            const headerBg = generateDarkerColour(col1);
 
+            let html = '<table class="edit-table" id="visual-editor-table">';
             for (let r = 0; r < tableData.length; r++) {
                 html += '<tr>';
                 for (let c = 0; c < tableData[r].length; c++) {
                     const cell = tableData[r][c];
-                    const bgStyle = cell.bg ? `background-color:${cell.bg};` : '';
 
-                    html += `<td id="cell-${r}-${c}"
-                        contenteditable="true"
-                        style="${bgStyle}"
-                        onmousedown="startDrag(event, ${r}, ${c})"
-                        onmouseenter="dragOver(event, ${r}, ${c})"
-                        oninput="updateCellData(${r}, ${c}, this.innerText)"
-                    >${cell.text.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</td>`;
+                    // Render exactly as the output does
+                    let bg = "#ffffff";
+                    if (cell.bg) {
+                        bg = cell.bg;
+                    } else if (hasHeader && r === 0) {
+                        bg = headerBg; // Darker header
+                    } else if (useAlt) {
+                        bg = (r % 2 === (hasHeader ? 1 : 0)) ? col1 : col2;
+                    }
+
+                    html += `<td id="cell-${r}-${c}" style="background-color:${bg};"
+                                onmousedown="startDrag(event, ${r}, ${c})"
+                                onmouseenter="dragOver(${r}, ${c})">
+                        <input type="text" id="input-${r}-${c}" value="${cell.text.replace(/"/g, '&quot;')}"
+                               oninput="updateCellData(${r}, ${c}, this.value)"
+                               onfocus="onInputFocus(${r}, ${c})"
+                               onblur="onInputBlur(${r}, ${c})">
+                    </td>`;
                 }
                 html += '</tr>';
             }
             html += '</table>';
-
             container.innerHTML = html;
-            updateControlDropdowns();
-            renderTableSelection();
+
+            applySelectionUI();
             updateTableOutput();
         }
 
-        // Table Selection Logic
+        // --- Selection & Drag Logic ---
         function startDrag(e, r, c) {
-            if(e.button !== 0) return; // Left click only
             isDragging = true;
-            selStart = {r, c};
-            selEnd = {r, c};
-            renderTableSelection();
+            selBounds = {r1: r, c1: c, r2: r, c2: c};
+            applySelectionUI();
+
+            // Direct clicks on input are naturally handled, but if clicked padding:
+            if (e.target.tagName !== 'INPUT') {
+                const inp = document.getElementById(`input-${r}-${c}`);
+                if (inp) inp.focus();
+            }
         }
 
-        function dragOver(e, r, c) {
+        function dragOver(r, c) {
             if (isDragging) {
-                selEnd = {r, c};
-                renderTableSelection();
-                window.getSelection().removeAllRanges(); // Prevents dragging text accidentally
+                selBounds.r2 = r;
+                selBounds.c2 = c;
+                applySelectionUI();
+
+                // If moving outside the starting cell while dragging,
+                // blur the active input so cell selection takes visual precedence over text selection.
+                if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+                    const activeIdParts = document.activeElement.id.split('-');
+                    if (activeIdParts[1] != r || activeIdParts[2] != c) {
+                        document.activeElement.blur();
+                    }
+                }
             }
         }
 
         window.addEventListener('mouseup', () => {
-            if (isDragging) {
-                isDragging = false;
-            }
+            isDragging = false;
         });
 
-        function renderTableSelection() {
-            // Remove previous selections
-            const cells = document.querySelectorAll('.edit-table td');
-            cells.forEach(td => td.classList.remove('selected'));
+        function onInputFocus(r, c) {
+            selBounds = {r1: r, c1: c, r2: r, c2: c};
+            applySelectionUI();
+            document.getElementById('cell-bg-color').value = tableData[r][c].bg || '#ffffff';
 
-            if (selStart.r === -1) return;
+            // Capture table state before any typing begins for the undo history
+            cellSnapshot = JSON.stringify(tableData);
+        }
 
-            const minR = Math.min(selStart.r, selEnd.r);
-            const maxR = Math.max(selStart.r, selEnd.r);
-            const minC = Math.min(selStart.c, selEnd.c);
-            const maxC = Math.max(selStart.c, selEnd.c);
+        function onInputBlur(r, c) {
+            // Push to history only if text actually changed during this focus session
+            if (cellSnapshot && cellSnapshot !== JSON.stringify(tableData)) {
+                historyStack.push(JSON.parse(cellSnapshot));
+                if (historyStack.length > 50) historyStack.shift();
+            }
+            cellSnapshot = null;
+        }
 
-            for(let r = minR; r <= maxR; r++) {
-                for(let c = minC; c <= maxC; c++) {
+        function applySelectionUI() {
+            if(tableData.length === 0) return;
+            const minR = Math.min(selBounds.r1, selBounds.r2);
+            const maxR = Math.max(selBounds.r1, selBounds.r2);
+            const minC = Math.min(selBounds.c1, selBounds.c2);
+            const maxC = Math.max(selBounds.c1, selBounds.c2);
+
+            for (let r = 0; r < tableData.length; r++) {
+                for (let c = 0; c < tableData[r].length; c++) {
                     const td = document.getElementById(`cell-${r}-${c}`);
-                    if(td) td.classList.add('selected');
+                    if (!td) continue;
+
+                    if (r >= minR && r <= maxR && c >= minC && c <= maxC) {
+                        td.classList.add('selected');
+                    } else {
+                        td.classList.remove('selected');
+                    }
                 }
             }
-
-            // Sync colour picker if single cell selected
-            if (minR === maxR && minC === maxC) {
-                const cell = tableData[minR][minC];
-                document.getElementById('cell-bg-color').value = cell.bg || '#ffffff';
-            }
         }
 
+        function getSelectionBounds() {
+            if(selBounds.r1 === -1) return null;
+            return {
+                minR: Math.min(selBounds.r1, selBounds.r2),
+                maxR: Math.max(selBounds.r1, selBounds.r2),
+                minC: Math.min(selBounds.c1, selBounds.c2),
+                maxC: Math.max(selBounds.c1, selBounds.c2)
+            };
+        }
+
+        // --- Editor Actions ---
         function updateCellData(r, c, val) {
             tableData[r][c].text = val;
-            updateTableOutput(); // Instantly update preview without re-rendering editor to keep focus
+            updateTableOutput();
         }
 
-        function applyColourToSelectedCells() {
-            if (selStart.r === -1) {
-                showNotification("Please select cells first.", "error");
+        function applyColourToSelection() {
+            const b = getSelectionBounds();
+            if (!b) {
+                showNotification("Please select one or more cells first.", "error");
                 return;
             }
-
+            saveState();
             const color = document.getElementById('cell-bg-color').value;
             const bgValue = (color.toLowerCase() === '#ffffff') ? "" : color;
 
-            const minR = Math.min(selStart.r, selEnd.r);
-            const maxR = Math.max(selStart.r, selEnd.r);
-            const minC = Math.min(selStart.c, selEnd.c);
-            const maxC = Math.max(selStart.c, selEnd.c);
-
-            for(let r = minR; r <= maxR; r++) {
-                for(let c = minC; c <= maxC; c++) {
+            for(let r = b.minR; r <= b.maxR; r++) {
+                for(let c = b.minC; c <= b.maxC; c++) {
                     tableData[r][c].bg = bgValue;
                 }
             }
             renderTableEditor();
         }
 
-        function removeSelectedRows() {
-            if(selStart.r === -1) return showNotification("No cells selected.", "error");
-
-            const minR = Math.min(selStart.r, selEnd.r);
-            const maxR = Math.max(selStart.r, selEnd.r);
-            const count = maxR - minR + 1;
-
-            if (tableData.length <= count) {
-                return showNotification("Cannot remove all rows.", "error");
-            }
-
-            tableData.splice(minR, count);
-            resetSelection();
-            renderTableEditor();
-        }
-
-        function removeSelectedCols() {
-            if(selStart.c === -1) return showNotification("No cells selected.", "error");
-
-            const minC = Math.min(selStart.c, selEnd.c);
-            const maxC = Math.max(selStart.c, selEnd.c);
-            const count = maxC - minC + 1;
-
-            if (tableData[0].length <= count) {
-                return showNotification("Cannot remove all columns.", "error");
-            }
-
-            for (let r = 0; r < tableData.length; r++) {
-                tableData[r].splice(minC, count);
-            }
-            resetSelection();
-            renderTableEditor();
-        }
-
-        function updateControlDropdowns() {
-            const rSelect = document.getElementById('insert-row-index');
-            const cSelect = document.getElementById('insert-col-index');
-
-            if(rSelect) {
-                rSelect.innerHTML = tableData.map((_, i) => `<option value="${i}">Row ${i+1}</option>`).join('');
-            }
-            if(cSelect) {
-                cSelect.innerHTML = tableData[0].map((_, i) => `<option value="${i}">Col ${i+1}</option>`).join('');
-            }
-        }
-
         function insertRowBefore() {
-            const select = document.getElementById('insert-row-index');
-            if(!select.value) return;
-            const idx = parseInt(select.value);
-            const newRow = Array(tableData[0].length).fill(null).map(() => ({text: "", bg: ""}));
+            const sel = document.getElementById('sel-insert-row');
+            if(!sel || sel.value === "") return;
+            saveState();
+            const idx = parseInt(sel.value);
+            const cols = (tableData.length > 0) ? tableData[0].length : 1;
+            const newRow = Array(cols).fill(null).map(() => ({text: "", bg: ""}));
             tableData.splice(idx, 0, newRow);
-            resetSelection();
+            selBounds = {r1: -1, c1: -1, r2: -1, c2: -1}; // reset selection
             renderTableEditor();
         }
 
         function insertColBefore() {
-            const select = document.getElementById('insert-col-index');
-            if(!select.value) return;
-            const idx = parseInt(select.value);
-            for (let r = 0; r < tableData.length; r++) {
-                tableData[r].splice(idx, 0, {text: "", bg: ""});
+            const sel = document.getElementById('sel-insert-col');
+            if(!sel || sel.value === "") return;
+            saveState();
+            const idx = parseInt(sel.value);
+            if(tableData.length === 0) {
+                tableData.push([{text: "", bg: ""}]);
+            } else {
+                for (let r = 0; r < tableData.length; r++) {
+                    tableData[r].splice(idx, 0, {text: "", bg: ""});
+                }
             }
-            resetSelection();
+            selBounds = {r1: -1, c1: -1, r2: -1, c2: -1};
             renderTableEditor();
         }
 
         function addRowAtEnd() {
-            const newRow = Array(tableData[0].length).fill(null).map(() => ({text: "", bg: ""}));
+            saveState();
+            const cols = (tableData.length > 0) ? tableData[0].length : 1;
+            const newRow = Array(cols).fill(null).map(() => ({text: "", bg: ""}));
             tableData.push(newRow);
             renderTableEditor();
         }
 
         function addColAtEnd() {
-            for (let r = 0; r < tableData.length; r++) {
-                tableData[r].push({text: "", bg: ""});
+            saveState();
+            if(tableData.length === 0) {
+                tableData.push([{text: "", bg: ""}]);
+            } else {
+                for (let r = 0; r < tableData.length; r++) {
+                    tableData[r].push({text: "", bg: ""});
+                }
             }
             renderTableEditor();
         }
 
-        function resetSelection() {
-            selStart = {r: -1, c: -1};
-            selEnd = {r: -1, c: -1};
+        function deleteSelectedRows() {
+            const b = getSelectionBounds();
+            if(!b) {
+                showNotification("No rows selected.", "error"); return;
+            }
+            saveState();
+            const count = b.maxR - b.minR + 1;
+            tableData.splice(b.minR, count);
+            selBounds = {r1: -1, c1: -1, r2: -1, c2: -1};
+            renderTableEditor();
+        }
+
+        function deleteSelectedCols() {
+            const b = getSelectionBounds();
+            if(!b) {
+                showNotification("No columns selected.", "error"); return;
+            }
+            saveState();
+            const count = b.maxC - b.minC + 1;
+            for (let r = 0; r < tableData.length; r++) {
+                tableData[r].splice(b.minC, count);
+            }
+            if(tableData.length > 0 && tableData[0].length === 0) {
+                tableData = [];
+            }
+            selBounds = {r1: -1, c1: -1, r2: -1, c2: -1};
+            renderTableEditor();
         }
 
         function clearTable() {
-            if(confirm("Are you sure you want to clear the entire table?")) {
+            if(confirm("Are you sure you want to clear the entire table? This will wipe text, structure, and colours.")) {
+                saveState();
                 tableData = [
                     [{text: "", bg: ""}, {text: "", bg: ""}],
                     [{text: "", bg: ""}, {text: "", bg: ""}],
                     [{text: "", bg: ""}, {text: "", bg: ""}]
                 ];
-                resetSelection();
+
+                // Reset toggles as requested
+                document.getElementById('tbl-alternating').checked = false;
+                document.getElementById('tbl-color-1').value = '#eef7e5';
+                document.getElementById('tbl-color-2').value = '#ffffff';
+
+                selBounds = {r1: -1, c1: -1, r2: -1, c2: -1};
                 renderTableEditor();
             }
         }
 
+        // Global Paste Listener for smart auto-pasting
+        window.addEventListener('paste', async (e) => {
+            if (currentTab !== 'tab-tables') return;
+
+            const text = (e.clipboardData || window.clipboardData).getData('text');
+            if (!text) return;
+
+            const rows = text.trim().split(/\r?\n/);
+            let maxCols = 0;
+            const newData = [];
+
+            for (const row of rows) {
+                const cols = row.split('\t');
+                if (cols.length > maxCols) maxCols = cols.length;
+                newData.push(cols.map(c => ({text: c.trim(), bg: ""})));
+            }
+
+            // Auto-paste rules applied ( > 1 col and < 10 rows )
+            if (maxCols > 1 && rows.length < 10) {
+                e.preventDefault(); // Stop standard paste inside the input field
+                saveState();
+
+                for (const row of newData) {
+                    while (row.length < maxCols) {
+                        row.push({text: "", bg: ""});
+                    }
+                }
+
+                tableData = newData;
+                selBounds = {r1:-1, c1:-1, r2:-1, c2:-1};
+                renderTableEditor();
+                showNotification("Table auto-loaded from clipboard!", "success");
+            }
+        });
+
+        // Fallback explicit button loader
         async function pasteTableData() {
             try {
                 const text = await navigator.clipboard.readText();
                 if (!text || text.trim() === '') throw new Error("Clipboard is empty.");
 
+                saveState();
                 const rows = text.trim().split(/\r?\n/);
                 const newData = [];
                 let maxCols = 0;
@@ -877,20 +1061,25 @@
 
                 if (newData.length > 0) {
                     tableData = newData;
-                    resetSelection();
+                    selBounds = {r1:-1, c1:-1, r2:-1, c2:-1};
                     renderTableEditor();
                     showNotification("Table loaded from clipboard!", "success");
                 } else {
                     throw new Error("Could not parse table data.");
                 }
+
             } catch (err) {
                 console.error(err);
-                showNotification("Failed to read table from clipboard. Make sure you have copied cells from Excel/Sheets. Note: Your browser might require you to allow clipboard permissions.", "error");
+                showNotification("Failed to read table from clipboard. Make sure you have copied cells from Excel/Sheets.", "error");
             }
         }
 
         function updateTableOutput() {
             if(currentTab !== 'tab-tables') return;
+            if(tableData.length === 0 || tableData[0].length === 0) {
+                setOutput("");
+                return;
+            }
 
             const useAlt = document.getElementById('tbl-alternating').checked;
             const col1 = document.getElementById('tbl-color-1').value;
@@ -898,14 +1087,18 @@
             const borderThick = document.getElementById('tbl-border').value;
             const hasHeader = document.getElementById('tbl-header').checked;
 
+            const headerBgColor = generateDarkerColour(col1);
+
             let html = `<table style="width: 100%; border-collapse: collapse; text-align: left;" border="${borderThick}">\n`;
 
             if (hasHeader && tableData.length > 0) {
-                html += `    <thead>\n        <tr style="background-color: var(--dark-green, #003a3d); color: #ffffff;">\n`;
+                html += `    <thead>\n        <tr>\n`;
                 for (let c = 0; c < tableData[0].length; c++) {
                     const cell = tableData[0][c];
+
+                    let bg = cell.bg ? cell.bg : headerBgColor; // Darker header implementation
                     const safeText = cell.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                    html += `            <th style="padding: 10px; border: ${borderThick}px solid #ccc;">${safeText || '&nbsp;'}</th>\n`;
+                    html += `            <th style="padding: 10px; background-color: ${bg}; border: ${borderThick}px solid #ccc;">${safeText || '&nbsp;'}</th>\n`;
                 }
                 html += `        </tr>\n    </thead>\n`;
             }
@@ -936,11 +1129,6 @@
             html += `    </tbody>\n</table>`;
             setOutput(html);
         }
-
-        // Init
-        window.onload = () => {
-            document.getElementById('preview-area').innerHTML = '<p style="color: #777; text-align: center; margin-top: 50px;">Select a tool above to generate elements.</p>';
-        };
 
     </script>
 </body>
