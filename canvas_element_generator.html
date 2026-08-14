@@ -150,7 +150,7 @@
 
         /* Preview & Export Area */
         .output-section {
-            display: none; /* Hidden on init because Instructions is active */
+            display: none;
             flex-wrap: wrap;
             gap: 20px;
             margin-top: 20px;
@@ -244,12 +244,14 @@
             background: transparent;
             min-width: 100px;
             padding: 8px;
-            pointer-events: auto; /* Allow direct clicks immediately */
+            pointer-events: auto;
+            color: inherit;
         }
 
         .edit-table input[type="text"]:focus {
             outline: none;
-            background: rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.9);
+            color: #333333;
         }
 
         /* Notifications */
@@ -340,8 +342,8 @@
         <table style="width: 100%; border-collapse: collapse; text-align: left; margin-bottom: 20px;" border="1">
             <thead>
                 <tr>
-                    <th style="padding: 10px; background-color: #c7dbb1; border: 1px solid #ccc;">Date</th>
-                    <th style="padding: 10px; background-color: #c7dbb1; border: 1px solid #ccc;">Topic</th>
+                    <th style="padding: 10px; background-color: #4b6a2e; color: #ffffff; border: 1px solid #ccc;">Date</th>
+                    <th style="padding: 10px; background-color: #4b6a2e; color: #ffffff; border: 1px solid #ccc;">Topic</th>
                 </tr>
             </thead>
             <tbody>
@@ -411,7 +413,6 @@
         </div>
 
         <div class="settings-bar">
-            <!-- Alternating colours off by default -->
             <label style="font-weight: normal; margin:0; display:flex; align-items:center; gap:5px;">
                 <input type="checkbox" id="tbl-alternating" onchange="updateTableOutput(); renderTableEditor();"> Use Alternating Colours
             </label>
@@ -460,7 +461,7 @@
 
             <label style="margin:0; font-weight: normal; margin-left:10px;">Cell Colour:</label>
             <input type="color" id="cell-bg-color" value="#ffffff" onchange="applyColourToSelection()">
-            <button class="small-btn" onclick="document.getElementById('cell-bg-color').value='#ffffff'; applyColourToSelection()">Reset Colour</button>
+            <button class="small-btn" onclick="resetSelectionColour()">Reset Colour</button>
 
             <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 10px;"></span>
 
@@ -499,9 +500,8 @@
 
         let currentTab = 'tab-instructions';
 
-        // Initialised entirely clear as requested
         let tableData = [
-            [{text: "", bg: ""}, {text: "", bg: ""}],
+            [{text: "", bg: "#FFFFFF"}, {text: "", bg: "#FFFFFF"}],
             [{text: "", bg: ""}, {text: "", bg: ""}],
             [{text: "", bg: ""}, {text: "", bg: ""}]
         ];
@@ -509,9 +509,8 @@
         let selBounds = {r1: -1, c1: -1, r2: -1, c2: -1};
         let isDragging = false;
 
-        // Undo History Setup
         let historyStack = [];
-        let cellSnapshot = null; // Used to track text changes between focus/blur
+        let cellSnapshot = null;
 
         function saveState() {
             historyStack.push(JSON.parse(JSON.stringify(tableData)));
@@ -537,7 +536,6 @@
             }
         });
 
-        // Window close warning
         window.addEventListener('beforeunload', function (e) {
             if (document.getElementById('html-output').value.trim() !== '') {
                 e.preventDefault();
@@ -545,7 +543,6 @@
             }
         });
 
-        // Tab Switching
         function openTab(evt, tabName) {
             let i, tabcontent, tablinks;
             tabcontent = document.getElementsByClassName("tab-content");
@@ -560,7 +557,6 @@
             evt.currentTarget.classList.add("active");
             currentTab = tabName;
 
-            // Toggle Output section visibility based on tab
             if (tabName === 'tab-instructions') {
                 document.getElementById('global-output-section').style.display = 'none';
             } else {
@@ -572,7 +568,6 @@
             else if (tabName === 'tab-tables') renderTableEditor();
         }
 
-        // Notification System
         function showNotification(message, type = 'info') {
             const container = document.getElementById('notification-container');
             const toast = document.createElement('div');
@@ -588,7 +583,6 @@
             }, 4000);
         }
 
-        // Copy HTML
         function copyHTML() {
             const output = document.getElementById('html-output');
             if (!output.value) {
@@ -626,14 +620,13 @@
             hex = hex.replace('#', '');
             if(hex.length === 3) hex = hex.split('').map(c => c+c).join('');
 
-            if (!hex) return "#ffffff"; // fallback
+            if (!hex) return "#ffffff";
 
             let r = parseInt(hex.substring(0,2), 16);
             let g = parseInt(hex.substring(2,4), 16);
             let b = parseInt(hex.substring(4,6), 16);
 
             let iterations = 0;
-            // Target a darker luminance for headers
             while(getLuminance(r, g, b) > 0.15 && iterations < 20) {
                 r = Math.floor(r * 0.85);
                 g = Math.floor(g * 0.85);
@@ -644,12 +637,24 @@
             return "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1);
         }
 
+        // Added this function so text contrasts nicely with custom white/light header backgrounds
+        function getTextColorForBg(hex) {
+            if (!hex) return "#ffffff";
+            hex = hex.replace('#', '');
+            if(hex.length === 3) hex = hex.split('').map(c => c+c).join('');
+
+            let r = parseInt(hex.substring(0,2), 16);
+            let g = parseInt(hex.substring(2,4), 16);
+            let b = parseInt(hex.substring(4,6), 16);
+
+            return getLuminance(r, g, b) > 0.179 ? "#333333" : "#ffffff";
+        }
+
         function setOutput(html) {
             document.getElementById('preview-area').innerHTML = html;
             document.getElementById('html-output').value = html;
         }
 
-        // --- Hide / Show Generator ---
         function updateHideShow() {
             if(currentTab !== 'tab-hideshow') return;
 
@@ -682,7 +687,6 @@
             setOutput(html);
         }
 
-        // --- Coloured Boxes Generator ---
         const boxStyles = {
             hint: { bg: '#e6f2f5', border: '#003A3D' },
             warning: { bg: '#fff3cd', border: '#ff9800' },
@@ -728,8 +732,6 @@
             setOutput(html);
         }
 
-        // --- Tables Generator ---
-
         function renderTableControls() {
             let rowSelect = document.getElementById('sel-insert-row');
             let colSelect = document.getElementById('sel-insert-col');
@@ -770,17 +772,22 @@
                 for (let c = 0; c < tableData[r].length; c++) {
                     const cell = tableData[r][c];
 
-                    // Render exactly as the output does
                     let bg = "#ffffff";
+                    let textColorStyle = "";
+
                     if (cell.bg) {
                         bg = cell.bg;
                     } else if (hasHeader && r === 0) {
-                        bg = headerBg; // Darker header
+                        bg = headerBg;
                     } else if (useAlt) {
                         bg = (r % 2 === (hasHeader ? 1 : 0)) ? col1 : col2;
                     }
 
-                    html += `<td id="cell-${r}-${c}" style="background-color:${bg};"
+                    if (hasHeader && r === 0) {
+                        textColorStyle = `color: ${getTextColorForBg(bg)};`;
+                    }
+
+                    html += `<td id="cell-${r}-${c}" style="background-color:${bg}; ${textColorStyle}"
                                 onmousedown="startDrag(event, ${r}, ${c})"
                                 onmouseenter="dragOver(${r}, ${c})">
                         <input type="text" id="input-${r}-${c}" value="${cell.text.replace(/"/g, '&quot;')}"
@@ -798,13 +805,11 @@
             updateTableOutput();
         }
 
-        // --- Selection & Drag Logic ---
         function startDrag(e, r, c) {
             isDragging = true;
             selBounds = {r1: r, c1: c, r2: r, c2: c};
             applySelectionUI();
 
-            // Direct clicks on input are naturally handled, but if clicked padding:
             if (e.target.tagName !== 'INPUT') {
                 const inp = document.getElementById(`input-${r}-${c}`);
                 if (inp) inp.focus();
@@ -817,8 +822,6 @@
                 selBounds.c2 = c;
                 applySelectionUI();
 
-                // If moving outside the starting cell while dragging,
-                // blur the active input so cell selection takes visual precedence over text selection.
                 if (document.activeElement && document.activeElement.tagName === 'INPUT') {
                     const activeIdParts = document.activeElement.id.split('-');
                     if (activeIdParts[1] != r || activeIdParts[2] != c) {
@@ -837,12 +840,10 @@
             applySelectionUI();
             document.getElementById('cell-bg-color').value = tableData[r][c].bg || '#ffffff';
 
-            // Capture table state before any typing begins for the undo history
             cellSnapshot = JSON.stringify(tableData);
         }
 
         function onInputBlur(r, c) {
-            // Push to history only if text actually changed during this focus session
             if (cellSnapshot && cellSnapshot !== JSON.stringify(tableData)) {
                 historyStack.push(JSON.parse(cellSnapshot));
                 if (historyStack.length > 50) historyStack.shift();
@@ -881,7 +882,6 @@
             };
         }
 
-        // --- Editor Actions ---
         function updateCellData(r, c, val) {
             tableData[r][c].text = val;
             updateTableOutput();
@@ -894,12 +894,29 @@
                 return;
             }
             saveState();
+
+            // Treat the colour input exactly as the user selected it
             const color = document.getElementById('cell-bg-color').value;
-            const bgValue = (color.toLowerCase() === '#ffffff') ? "" : color;
 
             for(let r = b.minR; r <= b.maxR; r++) {
                 for(let c = b.minC; c <= b.maxC; c++) {
-                    tableData[r][c].bg = bgValue;
+                    tableData[r][c].bg = color;
+                }
+            }
+            renderTableEditor();
+        }
+
+        // Dedicated reset function replaces the inline hack
+        function resetSelectionColour() {
+            const b = getSelectionBounds();
+            if (!b) {
+                showNotification("Please select one or more cells first.", "error");
+                return;
+            }
+            saveState();
+            for(let r = b.minR; r <= b.maxR; r++) {
+                for(let c = b.minC; c <= b.maxC; c++) {
+                    tableData[r][c].bg = "";
                 }
             }
             renderTableEditor();
@@ -913,7 +930,7 @@
             const cols = (tableData.length > 0) ? tableData[0].length : 1;
             const newRow = Array(cols).fill(null).map(() => ({text: "", bg: ""}));
             tableData.splice(idx, 0, newRow);
-            selBounds = {r1: -1, c1: -1, r2: -1, c2: -1}; // reset selection
+            selBounds = {r1: -1, c1: -1, r2: -1, c2: -1};
             renderTableEditor();
         }
 
@@ -947,7 +964,7 @@
                 tableData.push([{text: "", bg: ""}]);
             } else {
                 for (let r = 0; r < tableData.length; r++) {
-                    tableData[r].push({text: "", bg: ""});
+                    tableData[r].push({text: "", bg: "#FFFFFF"});
                 }
             }
             renderTableEditor();
@@ -986,12 +1003,11 @@
             if(confirm("Are you sure you want to clear the entire table? This will wipe text, structure, and colours.")) {
                 saveState();
                 tableData = [
-                    [{text: "", bg: ""}, {text: "", bg: ""}],
+                    [{text: "", bg: "#FFFFFF"}, {text: "", bg: "#FFFFFF"}],
                     [{text: "", bg: ""}, {text: "", bg: ""}],
                     [{text: "", bg: ""}, {text: "", bg: ""}]
                 ];
 
-                // Reset toggles as requested
                 document.getElementById('tbl-alternating').checked = false;
                 document.getElementById('tbl-color-1').value = '#eef7e5';
                 document.getElementById('tbl-color-2').value = '#ffffff';
@@ -1001,7 +1017,6 @@
             }
         }
 
-        // Global Paste Listener for smart auto-pasting
         window.addEventListener('paste', async (e) => {
             if (currentTab !== 'tab-tables') return;
 
@@ -1018,9 +1033,8 @@
                 newData.push(cols.map(c => ({text: c.trim(), bg: ""})));
             }
 
-            // Auto-paste rules applied ( > 1 col and < 10 rows )
             if (maxCols > 1 && rows.length < 10) {
-                e.preventDefault(); // Stop standard paste inside the input field
+                e.preventDefault();
                 saveState();
 
                 for (const row of newData) {
@@ -1036,7 +1050,6 @@
             }
         });
 
-        // Fallback explicit button loader
         async function pasteTableData() {
             try {
                 const text = await navigator.clipboard.readText();
@@ -1096,9 +1109,10 @@
                 for (let c = 0; c < tableData[0].length; c++) {
                     const cell = tableData[0][c];
 
-                    let bg = cell.bg ? cell.bg : headerBgColor; // Darker header implementation
+                    let bg = cell.bg ? cell.bg : headerBgColor;
+                    let textColor = getTextColorForBg(bg);
                     const safeText = cell.text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                    html += `            <th style="padding: 10px; background-color: ${bg}; border: ${borderThick}px solid #ccc;">${safeText || '&nbsp;'}</th>\n`;
+                    html += `            <th style="padding: 10px; background-color: ${bg}; color: ${textColor}; border: ${borderThick}px solid #ccc;">${safeText || '&nbsp;'}</th>\n`;
                 }
                 html += `        </tr>\n    </thead>\n`;
             }
@@ -1111,11 +1125,12 @@
                 for (let c = 0; c < tableData[r].length; c++) {
                     const cell = tableData[r][c];
 
-                    let bg = "";
-                    if (cell.bg) {
-                        bg = cell.bg;
-                    } else if (useAlt) {
+                    let bg = "#FF0000";
+                    if (useAlt) {
                         bg = (r % 2 === (hasHeader ? 1 : 0)) ? col1 : col2;
+                    }
+                    else if (cell.bg) {
+                        bg = cell.bg;
                     } else {
                         bg = "#ffffff";
                     }
