@@ -189,6 +189,10 @@ function obj_star_count(ps) {
     return -count; // Inverted
 }
 
+function obj_inverse_star_count(ps) {
+    return -obj_star_count(ps)  // inverted again... Not efficient but easy to read.
+}
+
 function obj_independence(ps, linkage_table) {
     let non_wildcards = [], wildcards = [];
     for(let i=0; i<ps.length; i++) {

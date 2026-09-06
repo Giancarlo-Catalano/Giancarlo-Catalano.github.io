@@ -132,7 +132,8 @@
             { id: 'weighted_var', name: 'Weighted Var' },
             { id: 'atomicity', name: 'Atomicity' },
             { id: 'a_plus_i', name: 'Atomicity + Ind' },
-            { id: 'star_count', name: 'Star Count' },
+            { id: 'star_count', name: '* Simplicity' },
+            { id: 'inverse_star_count', name: '* Complexity' },
             { id: 'independence', name: 'Independence' },
             { id: 'robustness', name: 'Robustness' },
             { id: 'sample_count', name: 'Sample Count' }
@@ -295,6 +296,7 @@
                     case 'atomicity': func = (ps) => obj_atomicity(ps, linkageMatrix); break;
                     case 'a_plus_i': func = (ps) => obj_a_plus_i(ps, linkageMatrix); break;
                     case 'star_count': func = (ps) => obj_star_count(ps); break;
+                    case 'inverse_star_count': func = (ps) => obj_inverse_star_count(ps); break;
                     case 'independence': func = (ps) => obj_independence(ps, linkageMatrix); break;
                     case 'robustness': func = (ps) => { let {fMatch} = getCache(ps); return obj_robustness(fMatch); }; break;
                     case 'sample_count': func = (ps) => { let {fMatch} = getCache(ps); return obj_sample_count(fMatch); }; break;

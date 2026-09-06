@@ -77,6 +77,7 @@
             <label><input type="checkbox" value="odd" class="proxy-cb"> Sum of values is odd</label>
             <label><input type="checkbox" value="seq1" class="proxy-cb"> Longest repeating sequence of 1</label>
             <label><input type="checkbox" value="seq0" class="proxy-cb"> Longest repeating sequence of 0</label>
+            <label><input type="checkbox" value="generation_number" class="proxy-cb"> Generation number</label>
         </div>
         <button onclick="generateProxyFitness()">Calculate & Download Proxies</button>
     </div>
@@ -308,8 +309,14 @@
         }
 
         let proxyData = [];
+        const popSize = parseInt(document.getElementById('pop-size').value);  // re-getting it from the interface is easier than storing it...
 
-        for (let entry of PRef) {
+        for (let entry_index = 0; entry_index<PRef.length; entry_index++) {
+            const entry = PRef[entry_index];
+        // }
+        //
+        //
+        // for (let entry of PRef) {
             let sol = entry.solution;
             let rowObj = {};
 
@@ -319,6 +326,7 @@
             if (selectedProxies.includes('zeros')) rowObj['Zeros'] = sol.filter(x => x === 0).length;
             if (selectedProxies.includes('ones')) rowObj['Ones'] = sol.filter(x => x === 1).length;
             if (selectedProxies.includes('odd')) rowObj['Is Sum Odd'] = (sum % 2 !== 0) ? 1 : 0;
+
 
             if (selectedProxies.includes('seq1') || selectedProxies.includes('seq0')) {
                 let maxSeq1 = 0, currSeq1 = 0;
@@ -334,6 +342,7 @@
                 if (selectedProxies.includes('seq0')) rowObj['Max Seq 0'] = maxSeq0;
             }
 
+            if (selectedProxies.includes('generation_number')) rowObj['Generation number'] = Math.floor(entry_index / popSize);
             proxyData.push(rowObj);
         }
 
