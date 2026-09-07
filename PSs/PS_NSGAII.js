@@ -366,7 +366,19 @@ function generate_random_ps_of_size(fixed_count, L, search_space) {
     return ps;
 }
 
-function calculate_descriptors(ps, PRefDatabase, proxyData, threshold = 0.1, samples = 100) {
+function generate_random_ps_of_size_subset_of(fixed_count, L, search_space, solution_to_explain) {
+    let ps = new Array(L).fill(-1);
+    let indices = Array.from({length: L}, (_, i) => i);
+    indices.sort(() => 0.5 - Math.random());
+
+    for (let i = 0; i < fixed_count; i++) {
+        let idx = indices[i];
+        ps[idx] = solution_to_explain[idx]
+    }
+    return ps;
+}
+
+function calculate_descriptors(ps, PRefDatabase, proxyData, threshold = 0.1, samples = 100, solution_to_explain) {
     let fixed_count = ps.filter(x => x !== -1).length;
     let L = ps.length;
     let search_space = new Array(L).fill(0).map((_, i) => {
@@ -392,7 +404,14 @@ function calculate_descriptors(ps, PRefDatabase, proxyData, threshold = 0.1, sam
     proxy_keys.forEach(k => sampled_avgs[k] = []);
 
     for (let i = 0; i < samples; i++) {
-        let random_ps = generate_random_ps_of_size(fixed_count, L, search_space);
+
+        let random_ps = null;
+        if (solution_to_explain === null) {
+            random_ps = generate_random_ps_of_size(fixed_count, L, search_space);
+        }
+        else {
+            random_ps = generate_random_ps_of_size_subset_of(fixed_count, L, search_space, solution_to_explain)
+        }
         let r_matches = PRefDatabase.getMatches(random_ps).matchIndices;
         if (r_matches.size > 0) {
             let rMatchArr = Array.from(r_matches);

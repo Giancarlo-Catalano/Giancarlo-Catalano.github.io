@@ -490,7 +490,18 @@ function setupResultsUI(activeNames) {
                         Sample Count: ${fMatch.length} | Mean Fitness: ${meanFit.toFixed(4)} | MWU p-value: ${mwu.toExponential(3)}<br><br>
                         <strong>Extreme Descriptors (Threshold 10%):</strong><br>`;
 
-            let descriptors = calculate_descriptors(ind.ps, db, proxyData, 0.1, 1000);
+            let solution_to_explain = null;
+            const isLocal = document.getElementById('search-type').value === 'local';
+            if (isLocal) {
+                let targetRaw = document.getElementById('target-solution').value;
+                let target = targetRaw.split(',').map(x => parseInt(x.trim()));
+                if (target.length !== L_size || target.some(isNaN)) {
+                    return showError("Invalid Target Solution.");
+                }
+                solution_to_explain = target;
+            }
+            let descriptors = calculate_descriptors(ind.ps, db, proxyData, 0.1, 1000, solution_to_explain);
+
             ind.descriptors = descriptors;
 
             if (descriptors.length === 0) {
