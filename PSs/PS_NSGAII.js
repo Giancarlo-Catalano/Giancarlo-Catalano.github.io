@@ -217,7 +217,7 @@ class PS_NSGAII {
             let needed = this.pop_size;
 
             while (children.length < needed) {
-                if (Math.random() < 0.9) {
+                if (Math.random() < 0.5) {
                     let p1 = this.tournamentSelection(population, ranks);
                     let p2 = this.tournamentSelection(population, ranks);
                     let [c1, c2] = OperatorsGlobal.crossover(p1, p2, this.L);
