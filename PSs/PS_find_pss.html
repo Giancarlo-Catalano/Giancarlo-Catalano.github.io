@@ -490,7 +490,7 @@ function setupResultsUI(activeNames) {
                         Sample Count: ${fMatch.length} | Mean Fitness: ${meanFit.toFixed(4)} | MWU p-value: ${mwu.toExponential(3)}<br><br>
                         <strong>Extreme Descriptors (Threshold 10%):</strong><br>`;
 
-            let descriptors = calculate_descriptors(ind.ps, db, proxyData, 0.1, 100);
+            let descriptors = calculate_descriptors(ind.ps, db, proxyData, 0.1, 1000);
             ind.descriptors = descriptors;
 
             if (descriptors.length === 0) {
