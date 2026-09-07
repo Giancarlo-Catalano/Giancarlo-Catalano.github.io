@@ -234,3 +234,7 @@ function obj_robustness(fMatch) {
 function obj_sample_count(fMatch) {
     return -fMatch.length; // Inverted
 }
+
+function obj_inverse_sample_count(fMatch) {
+    return fMatch.length; // Inverted
+}

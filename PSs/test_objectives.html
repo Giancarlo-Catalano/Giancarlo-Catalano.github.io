@@ -143,15 +143,21 @@
             'atomicity': (fm, fnm, ps) => linkageMatrix ? obj_atomicity(ps, linkageMatrix) : "Requires Linkage",
             'a_plus_i': (fm, fnm, ps) => linkageMatrix ? obj_a_plus_i(ps, linkageMatrix) : "Requires Linkage",
             'star_count': (fm, fnm, ps) => obj_star_count(ps),
+            'inverse_star_count': (fm, fnm, ps) => obj_inverse_star_count(ps),
             'independence': (fm, fnm, ps) => linkageMatrix ? obj_independence(ps, linkageMatrix) : "Requires Linkage",
             'robustness': (fm, fnm, ps) => obj_robustness(fm),
-            'sample_count': (fm, fnm, ps) => obj_sample_count(fm)
+            'sample_count': (fm, fnm, ps) => obj_sample_count(fm),
+            'inverse_sample_count': (fm, fnm, ps) => obj_inverse_sample_count(fm)
         };
 
         const metricNames = {
             'mean_fitness': 'Mean Fitness', 'mwu': 'MWU Test', 'mwu_thresh': 'MWU Test (Threshold)',
             'weighted_var': 'Weighted Variance', 'atomicity': 'Atomicity', 'a_plus_i': 'Atomicity + Independence',
-            'star_count': 'Star Count', 'independence': 'Independence', 'robustness': 'Robustness', 'sample_count': 'Sample Count'
+            'star_count': 'Star Count',
+            'inverse_star_count': 'Inverse Star Count',
+            'independence': 'Independence', 'robustness': 'Robustness',
+            'sample_count': 'Sample Count',
+            'inverse_sample_count': 'Inverse Sample Count'
         };
 
         function showError(msg) {

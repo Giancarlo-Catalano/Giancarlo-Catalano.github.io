@@ -136,7 +136,8 @@
             { id: 'inverse_star_count', name: '* Complexity' },
             { id: 'independence', name: 'Independence' },
             { id: 'robustness', name: 'Robustness' },
-            { id: 'sample_count', name: 'Sample Count' }
+            { id: 'sample_count', name: 'Sample Count' },
+            { id: 'inverse_sample_count', name: 'Inverse Sample Count' },
         ];
 
         function initUI() {
@@ -300,6 +301,7 @@
                     case 'independence': func = (ps) => obj_independence(ps, linkageMatrix); break;
                     case 'robustness': func = (ps) => { let {fMatch} = getCache(ps); return obj_robustness(fMatch); }; break;
                     case 'sample_count': func = (ps) => { let {fMatch} = getCache(ps); return obj_sample_count(fMatch); }; break;
+                    case 'inverse_sample_count': func = (ps) => { let {fMatch} = getCache(ps); return obj_inverse_sample_count(fMatch); }; break;
                 }
                 funcs.push(func);
                 names.push(id);
