@@ -50,6 +50,8 @@
         <select id="method-select">
             <option value="dominance">Dominance-based Linkage (Cramer's V)</option>
             <option value="misurvival">Mutual Information of Survival Linkage</option>
+            <option value="mitraditional">Traditional Mutual Information</option>
+
         </select>
     </div>
 
@@ -138,8 +140,10 @@
                 try {
                     if (method === 'dominance') {
                         linkageMatrix = dominance_linkage(solutions, fitnesses);
-                    } else {
+                    } else if (method === 'misurvival') {
                         linkageMatrix = misurvival_linkage(solutions, fitnesses);
+                    } else {
+                        linkageMatrix = traditional_mutual_information(solutions, fitnesses);
                     }
                     renderResults(linkageMatrix, headers);
                 } catch (err) {

@@ -237,3 +237,53 @@ function misurvival_linkage(solutions, fitnesses) {
     }
     return matrix;
 }
+
+
+/**
+ * Implements Mutual Information
+ */
+function traditional_mutual_information(solutions, fitnesses) {
+    const N = solutions.length;
+    const L = solutions[0].length;
+    const matrix = Array.from({ length: L }, () => new Array(L).fill(""));
+
+    // Survival probability per solution
+    let survival = fitnesses.map(f => 1 / N);
+
+    // Precompute marginal probabilities p_a
+    let P_marginals = Array.from({ length: L }, () => ({}));
+    for (let i = 0; i < N; i++) {
+        let sol = solutions[i];
+        let surv = survival[i];
+        for (let a = 0; a < L; a++) {
+            let val = sol[a];
+            P_marginals[a][val] = (P_marginals[a][val] || 0) + surv;
+        }
+    }
+
+    // Compute MI for every pair (a, b)
+    for (let a = 0; a < L; a++) {
+        for (let b = a + 1; b < L; b++) {
+            let P_joint = {};
+            for (let i = 0; i < N; i++) {
+                let key = `${solutions[i][a]}_${solutions[i][b]}`;
+                P_joint[key] = (P_joint[key] || 0) + survival[i];
+            }
+
+            let mi = 0;
+            for (let key in P_joint) {
+                let [val_a, val_b] = key.split('_').map(Number);
+                let p_ab = P_joint[key];
+                let p_a = P_marginals[a][val_a];
+                let p_b = P_marginals[b][val_b];
+
+                if (p_ab > 0 && p_a > 0 && p_b > 0) {
+                    mi += p_ab * Math.log(p_ab / (p_a * p_b));
+                }
+            }
+            matrix[a][b] = mi;
+            matrix[b][a] = mi; // Symmetric
+        }
+    }
+    return matrix;
+}
