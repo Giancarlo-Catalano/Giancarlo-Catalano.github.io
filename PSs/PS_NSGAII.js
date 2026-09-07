@@ -153,12 +153,18 @@ class PS_NSGAII {
 
         this.cache = new Map();
         this.evaluations_done = 0;
+
+        this.evaluation_including_cache_hit = 0;
     }
 
     evaluate(ps) {
+        this.evaluation_including_cache_hit++;
         let key = ps.join(',');
-        if (this.cache.has(key)) return this.cache.get(key);
-        
+        if (this.cache.has(key)) {
+            return this.cache.get(key);
+        }
+
+
         let scores = this.objectives.map(objFn => {
             let val = objFn(ps);
             // Safety Net: Convert NaN or null to Infinity so it gets immediately dominated
@@ -202,7 +208,7 @@ class PS_NSGAII {
 
         let generation_count = 0;
 
-        while (this.evaluations_done < this.budget) {
+        while (this.evaluation_including_cache_hit < this.budget) {
             let fitnesses = population.map(ind => this.evaluate(ind));
             let fronts = get_pareto_fronts(fitnesses);
 
@@ -265,7 +271,7 @@ class PS_NSGAII {
             generation_count++;
             // Yield to the main thread every 5 generations to update the progress bar
             if (generation_count % 5 === 0 && progressCallback) {
-                progressCallback(this.evaluations_done, this.budget);
+                progressCallback(this.evaluation_including_cache_hit, this.budget);
                 await new Promise(resolve => setTimeout(resolve, 0));
             }
         }
