@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Explainable Metaheuristics: Staff Rostering Toolkit</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="tab-header">
+        <button class="tab-btn active" onclick="switchTab('page1')">1: iRoster Solver</button>
+        <button class="tab-btn" onclick="switchTab('page2')">2: Best Solution Viewer</button>
+        <button class="tab-btn" onclick="switchTab('page3')">3: Linkage Learning</button>
+        <button class="tab-btn" onclick="switchTab('page4')">4: PS Mining Setup</button>
+        <button class="tab-btn" onclick="switchTab('page5')">5: Discovered PSs</button>
+        <button class="tab-btn" onclick="switchTab('page6')">6: Solution Modification</button>
+    </div>
+
+    <!-- PAGE 1: iRoster Solver -->
+    <div id="page1" class="tab-content active">
+        <div class="grid-2">
+            <div class="panel">
+                <h3 class="panel-title">Solver Parameters</h3>
+                <label>Data Source:</label>
+                <input type="text" value="MartinsInstance.json" readonly style="background: #eee;">
+
+                <label>Evaluation Budget:</label>
+                <input type="number" id="p1-budget" value="3000" min="200" step="100">
+
+                <label>Population Size:</label>
+                <input type="number" id="p1-popsize" value="60" min="10" step="10">
+
+                <button class="action-btn" id="p1-run-btn" onclick="executeSolver()">Run iRoster</button>
+                <div id="p1-progress" style="margin-top: 10px; font-weight: bold;">Status: Waiting for data...</div>
+            </div>
+            <div class="panel">
+                <h3 class="panel-title">Optimization Trace</h3>
+                <div class="chart-box">
+                    <canvas id="fitnessCanvas" width="600" height="200"></canvas>
+                </div>
+                <div class="terminal" id="p1-log" style="margin-top: 10px;">Ready.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE 2: Best Solution Viewer -->
+    <div id="page2" class="tab-content">
+        <div class="panel">
+            <h3 class="panel-title" id="p2-fit-summary">Best Solution Summary</h3>
+        </div>
+
+        <div class="panel">
+            <h3 class="panel-title">Skill-Weekday Coverage Penalties (Heatmap)</h3>
+            <div class="table-wrap">
+                <table class="data-table" id="p2-skill-matrix">
+                    <thead id="p2-skill-matrix-head"></thead>
+                    <tbody id="p2-skill-matrix-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3 class="panel-title">Full 91-Day Skill Deployment</h3>
+            <div class="table-wrap">
+                <table class="data-table" id="p2-daily-table">
+                    <thead id="p2-daily-head"></thead>
+                    <tbody id="p2-daily-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3 class="panel-title">Employee Roster Browser</h3>
+            <div class="table-wrap">
+                <table class="data-table" id="p2-emp-table">
+                    <thead><tr><th>Employee ID</th><th>Assigned Rota</th><th>Pref Rank</th><th>Skills</th><th>Calendar View (13 Weeks)</th></tr></thead>
+                    <tbody id="p2-emp-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE 3: Linkage Learning -->
+    <div id="page3" class="tab-content">
+        <div class="panel">
+            <h3 class="panel-title">Compute Linkage Table</h3>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <div style="flex: 1;">
+                    <label>Linkage Metric:</label>
+                    <select id="p3-method">
+                        <option value="misurvival" selected>Mutual Information of Survival</option>
+                        <option value="dominance">Dominance-based Linkage (Cramer's V)</option>
+                        <option value="traditional_mi">Traditional Mutual Information</option>
+                    </select>
+                </div>
+                <div>
+                    <button class="action-btn" onclick="executeLinkageCalculation()" style="margin-top: 15px;">Calculate Linkage</button>
+                    <button class="action-btn" onclick="executeGreedyReordering()" id="p3-sort-btn" disabled style="margin-top: 15px; background: #27ae60;">Re-arrange (Greedy Adjacency)</button>
+                </div>
+            </div>
+            <div id="p3-status" style="margin-top: 8px; font-weight: bold;">Status: Waiting for solver data.</div>
+        </div>
+        <div class="panel" style="text-align: center;">
+            <canvas id="matrixCanvas" width="564" height="564" style="border: 1px solid #ccc;"></canvas>
+        </div>
+        <div class="panel">
+            <h3 class="panel-title">Worker Linkage Explorer</h3>
+            <div style="display: flex; gap: 15px; margin-bottom: 10px;">
+                <label style="margin: 0; align-self: center;">Select Worker:</label>
+                <select id="p3-worker-select" onchange="showWorkerLinkages()"></select>
+            </div>
+            <div class="table-wrap" style="max-height: 250px;">
+                <table class="data-table">
+                    <thead><tr><th>Rank</th><th>Linked Worker</th><th>Linkage Score</th></tr></thead>
+                    <tbody id="p3-linkage-results"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGE 4: PS Mining Setup -->
+    <div id="page4" class="tab-content">
+        <div class="panel">
+            <h3 class="panel-title">Multi-Objective Partial Solution Mining (NSGA-II)</h3>
+            <div class="grid-2">
+                <div>
+                    <label>Search Scope:</label>
+                    <select id="p4-scope">
+                        <option value="local">Subset-of-Solution (Local Explanation of Best)</option>
+                        <option value="global">Any-Pattern (Global Search)</option>
+                    </select>
+                    <label>Evaluation Budget:</label>
+                    <input type="number" id="p4-budget" value="2500" step="500">
+                    <label>Population Size:</label>
+                    <input type="number" id="p4-popsize" value="60" step="10">
+                </div>
+                <div>
+                    <label>Active Objectives (Minimization):</label>
+                    <div id="p4-obj-list" style="max-height: 180px; overflow-y: auto; border: 1px solid var(--border-color); padding: 8px;">
+                        <label><input type="checkbox" value="mean_fitness" checked> Mean Fitness</label>
+                        <label><input type="checkbox" value="mwu"> MWU Test P-Value</label>
+                        <label><input type="checkbox" value="mwu_thresh"> MWU Test (Threshold)</label>
+                        <label><input type="checkbox" value="weighted_var"> Weighted Variance</label>
+                        <label><input type="checkbox" value="atomicity"> Atomicity</label>
+                        <label><input type="checkbox" value="a_plus_i"> Atomicity + Independence</label>
+                        <label><input type="checkbox" value="star_count" checked> Star-count</label>
+                        <label><input type="checkbox" value="inverse_star_count"> Inverse Star Count</label>
+                        <label><input type="checkbox" value="independence"> Independence</label>
+                        <label><input type="checkbox" value="robustness"> Robustness</label>
+                        <label><input type="checkbox" value="sample_count"> Sample Count</label>
+                        <label><input type="checkbox" value="inverse_sample_count"> Inverse Sample Count</label>
+                    </div>
+                </div>
+            </div>
+            <button class="action-btn" onclick="executePSMining()" style="margin-top: 15px;">Run PS Mining</button>
+            <div id="p4-status" style="margin-top: 8px; font-weight: bold;">Status: Idle.</div>
+        </div>
+    </div>
+
+    <!-- PAGE 5: View PS Results -->
+    <div id="page5" class="tab-content">
+        <div class="panel">
+            <h3 class="panel-title">Discovered Partial Solutions</h3>
+            <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px;">
+                <label style="margin: 0;">Sort Ordering:</label>
+                <select id="p5-sort" style="width: auto; margin: 0;" onchange="renderPSCards()">
+                    <option value="minimax">Minimax Regret</option>
+                    <option value="mean_fitness">Mean Fitness</option>
+                    <option value="simplicity">Simplicity (* Count)</option>
+                    <option value="atomicity">Atomicity</option>
+                </select>
+                <label style="margin: 0; margin-left: 10px;">
+                    <input type="checkbox" id="p5-cluster" onchange="renderPSCards()"> Group Similar (Centroids)
+                </label>
+
+                <!-- New Settings for Descriptors -->
+                <label style="margin: 0; margin-left: auto;">Descriptor Reference:</label>
+                <select id="desc-ref" style="width: auto; margin: 0;" onchange="clearAllDescriptors()">
+                    <option value="global">Global (Any Pattern)</option>
+                    <option value="local">Local (Target Solution)</option>
+                </select>
+
+                <label style="margin: 0;">Threshold:</label>
+                <input type="number" id="desc-threshold" value="0.1" step="0.01" min="0" max="0.5" style="width: 70px; margin: 0;" onchange="clearAllDescriptors()">
+            </div>
+            <div id="p5-container">No Partial Solutions mined yet.</div>
+        </div>
+    </div>
+
+    <!-- PAGE 6: Solution Modification -->
+    <div id="page6" class="tab-content">
+        <div class="panel">
+            <h3 class="panel-title">Manual Modification Sandbox</h3>
+            <div class="grid-2">
+                <div>
+                    <label>Select Worker:</label>
+                    <select id="p6-worker-select" onchange="updateWorkerModificationUI()"></select>
+                    <label>Assign Alternative Rota:</label>
+                    <select id="p6-rota-select"></select>
+                </div>
+                <div>
+                    <button class="action-btn" onclick="applyModification()" style="margin-top: 25px;">Apply Change</button>
+                    <button class="action-btn" onclick="resetModifications()" style="margin-top: 25px; background: #c0392b;">Reset to Best</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="panel">
+                <h3 class="panel-title">Active Modifications List</h3>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead><tr><th>Worker</th><th>Original</th><th>Modified</th><th>Action</th></tr></thead>
+                        <tbody id="p6-mods-body"><tr><td colspan="4">No manual modifications active.</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3 class="panel-title">Fitness Impact</h3>
+                <div style="font-size: 14px; margin-bottom: 10px;">
+                    <div>Baseline Solution Fitness: <strong id="p6-base-fit">0.0000</strong></div>
+                    <div>Modified Solution Fitness: <strong id="p6-mod-fit">0.0000</strong></div>
+                    <div>Net Delta: <strong id="p6-fit-delta">0.0000</strong></div>
+                </div>
+                <div class="terminal" id="p6-impact-log">Adjust a rota to inspect impacts.</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../PSs/PS_objectives.js"></script>
+    <script src="../PSs/PS_find_linkage_table.js"></script>
+    <script src="../PSs/PS_NSGAII.js"></script>
+    <script src="demo.js"></script>
+</body>
+</html>

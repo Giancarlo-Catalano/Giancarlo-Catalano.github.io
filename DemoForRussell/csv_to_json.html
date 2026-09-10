@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>BT Staff Rostering CSV to JSON Converter</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 25px; line-height: 1.5; background: #fafafa; color: #222; }
+        h1, h2 { color: #111; }
+        .file-box { background: #fff; border: 1px solid #ccc; padding: 15px; margin-bottom: 15px; border-radius: 4px; }
+        .file-box label { display: block; font-weight: bold; margin-bottom: 6px; }
+        button { background: #005a9c; color: white; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; border-radius: 4px; }
+        button:hover { background: #003f6e; }
+        textarea { width: 100%; height: 350px; font-family: monospace; font-size: 12px; margin-top: 15px; box-sizing: border-box; }
+        #status { margin-top: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Staff Rostering Instance Converter</h1>
+    <p>Upload the 4 raw CSV files to assemble the unified benchmark JSON.</p>
+
+    <div class="file-box">
+        <label>1. employeeData.csv</label>
+        <input type="file" id="file-emp" accept=".csv">
+    </div>
+    <div class="file-box">
+        <label>2. employeeSkillsData.csv</label>
+        <input type="file" id="file-skills" accept=".csv">
+    </div>
+    <div class="file-box">
+        <label>3. rosterPatternDaysData.csv</label>
+        <input type="file" id="file-rpd" accept=".csv">
+    </div>
+    <div class="file-box">
+        <label>4. rosterPatternData.csv (Optional metadata)</label>
+        <input type="file" id="file-rp" accept=".csv">
+    </div>
+
+    <button onclick="processFiles()">Generate JSON</button>
+    <button onclick="copyJSON()">Copy to Clipboard</button>
+    <div id="status"></div>
+    <textarea id="json-output" placeholder="JSON structure will appear here..."></textarea>
+
+    <script>
+        function readFile(fileInput) {
+            return new Promise((resolve, reject) => {
+                const file = fileInput.files[0];
+                if (!file) return resolve("");
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+        }
+
+        function parseCSV(text) {
+            const lines = text.trim().split(/\r?\n/);
+            if (lines.length === 0) return [];
+            const headers = lines[0].split(',').map(h => h.trim());
+            const rows = [];
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                const cols = lines[i].split(',').map(c => c.trim());
+                let obj = {};
+                headers.forEach((h, idx) => obj[h] = cols[idx] !== undefined ? cols[idx] : "");
+                rows.push(obj);
+            }
+            return rows;
+        }
+
+        async function processFiles() {
+            const status = document.getElementById('status');
+            status.textContent = "Processing files...";
+            try {
+                const empText = await readFile(document.getElementById('file-emp'));
+                const skillsText = await readFile(document.getElementById('file-skills'));
+                const rpdText = await readFile(document.getElementById('file-rpd'));
+
+                if (!empText || !skillsText || !rpdText) {
+                    status.textContent = "Error: employeeData, employeeSkillsData, and rosterPatternDaysData are required.";
+                    return;
+                }
+
+                const empRows = parseCSV(empText);
+                const skillRows = parseCSV(skillsText);
+                const rpdRows = parseCSV(rpdText);
+
+                // 1. Build Rota Day Lookup
+                const rotaDays = {};
+                rpdRows.forEach(r => {
+                    const rId = r.SYNTH_RP_ID;
+                    const dIdx = parseInt(r.DAY_INDEX, 10);
+                    const isWorking = (parseInt(r.START_TIME, 10) !== 0 || parseInt(r.END_TIME, 10) !== 0) ? 1 : 0;
+                    if (!rotaDays[rId]) rotaDays[rId] = {};
+                    rotaDays[rId][dIdx] = isWorking;
+                });
+
+                const calendar_length = 91; // 13 weeks * 7 days
+                const rotasExtended = {};
+                for (let rId in rotaDays) {
+                    const daysMap = rotaDays[rId];
+                    const numDays = Object.keys(daysMap).length;
+                    const basePattern = [];
+                    for (let d = 0; d < numDays; d++) {
+                        basePattern.push(daysMap[d] !== undefined ? daysMap[d] : 0);
+                    }
+                    const ext = [];
+                    while (ext.length < calendar_length) {
+                        ext.push(...basePattern);
+                    }
+                    rotasExtended[rId] = ext.slice(0, calendar_length);
+                }
+
+                // 2. Build Skills Lookup
+                const workerSkills = {};
+                const allSkillsSet = new Set();
+                skillRows.forEach(r => {
+                    const eId = r.EMPLOYEE_ID;
+                    const sId = r.SKILL_ID;
+                    if (!workerSkills[eId]) workerSkills[eId] = [];
+                    if (!workerSkills[eId].includes(sId)) workerSkills[eId].push(sId);
+                    allSkillsSet.add(sId);
+                });
+
+                // 3. Build Workers
+                const workers = [];
+                empRows.forEach((r, idx) => {
+                    const wId = r.ID;
+                    const rotas = [];
+                    for (let p = 1; p <= 5; p++) {
+                        const rpCode = r[`PREFERENCE_${p}`];
+                        if (rpCode && rotasExtended[rpCode]) {
+                            rotas.push({
+                                rota_id: rpCode,
+                                preference_rank: p - 1,
+                                pattern: rotasExtended[rpCode]
+                            });
+                        }
+                    }
+                    if (rotas.length === 0 && r.ROSTER_PATTERN_ID && rotasExtended[r.ROSTER_PATTERN_ID]) {
+                        rotas.push({
+                            rota_id: r.ROSTER_PATTERN_ID,
+                            preference_rank: 0,
+                            pattern: rotasExtended[r.ROSTER_PATTERN_ID]
+                        });
+                    }
+
+                    workers.push({
+                        index: idx,
+                        worker_id: wId,
+                        name: `Employee#${idx}`,
+                        skills: workerSkills[wId] || [],
+                        available_rotas: rotas
+                    });
+                });
+
+                const problemJSON = {
+                    calendar_length: calendar_length,
+                    weights: [1, 1, 1, 1, 1, 10, 10], // Mon-Fri: 1, Sat-Sun: 10
+                    rota_preference_weight: 0.001,
+                    skills: Array.from(allSkillsSet).sort(),
+                    workers: workers
+                };
+
+                document.getElementById('json-output').value = JSON.stringify(problemJSON);
+                status.textContent = `Success: Built problem with ${workers.length} workers, ${allSkillsSet.size} skills, calendar length ${calendar_length}.`;
+            } catch (err) {
+                status.textContent = `Error: ${err.message}`;
+            }
+        }
+
+        function copyJSON() {
+            const copyText = document.getElementById("json-output");
+            copyText.select();
+            document.execCommand("copy");
+            document.getElementById('status').textContent = "JSON copied to clipboard.";
+        }
+    </script>
+</body>
+</html>
