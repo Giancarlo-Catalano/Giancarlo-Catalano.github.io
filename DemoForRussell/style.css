@@ -73,14 +73,26 @@ table.data-table tr:hover { background-color: var(--table-hover); }
 canvas { max-width: 100%; }
 .terminal { background: #1e1e1e; color: #d4d4d4; font-family: monospace; padding: 10px; border-radius: 4px; font-size: 11px; max-height: 180px; overflow-y: auto; white-space: pre-wrap; }
 
-.day-block { display: inline-block; width: 5px; height: 12px; margin-right: 1px; vertical-align: middle; }
+/* Calendar Grid Fix */
+.calendar-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1px;
+    width: 420px; /* Forces calendar to wrap nicely */
+}
+.day-w, .day-off {
+    display: block;
+    width: 5px;
+    height: 12px;
+    border-radius: 1px;
+}
 .day-w { background-color: #27ae60; }
 .day-off { background-color: #ebedef; }
 
 .ps-card { background: #ffffff; border: 1px solid var(--border-color); border-left: 4px solid var(--primary-color); padding: 12px; margin-bottom: 12px; }
-.ps-title { font-family: monospace; font-weight: bold; font-size: 13px; }
+.ps-title { font-family: monospace; font-weight: bold; font-size: 13px; cursor: pointer; user-select: none; }
+.ps-title:hover { color: var(--accent-color); }
 .ps-tag { display: inline-block; background: #edf2f7; border: 1px solid #cbd5e0; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin: 2px; }
 
-/* Accordion for PS rules */
 .ps-rules-content { display: none; padding: 10px; background: #f9f9f9; border: 1px solid #eee; margin-top: 10px; font-size: 12px; max-height: 150px; overflow-y: auto; }
 .ps-rules-content.expanded { display: block; }

@@ -8,7 +8,16 @@ let BestFitness = -Infinity;
 let LinkageMatrix = null;
 let RawLinkageMatrix = null;
 let MinedPartialSolutions = [];
+let ActiveMetrics = [];
 let ActiveModifications = new Map();
+let ComparedWorkers = []; // For Page 2 vertical comparison
+
+const metricNames = {
+    'mean_fitness': 'Mean Fitness', 'mwu': 'MWU Test P-Value', 'mwu_thresh': 'MWU Test (Threshold)',
+    'weighted_var': 'Weighted Variance', 'atomicity': 'Atomicity', 'a_plus_i': 'Atomicity + Independence',
+    'star_count': 'Star-count', 'inverse_star_count': 'Inverse Star Count', 'independence': 'Independence',
+    'robustness': 'Robustness', 'sample_count': 'Sample Count', 'inverse_sample_count': 'Inverse Sample Count'
+};
 
 window.addEventListener('DOMContentLoaded', () => {
     fetch('MartinsInstance.json')
@@ -215,15 +224,13 @@ async function executeSolver() {
     log.textContent += `Run completed successfully. Total Generations: ${gen}\nBest Fitness Found: ${BestFitness.toFixed(5)}\nGenerated ${ReferencePopulation.length} PRef entries with Proxy data.`;
 }
 
-// --- Page 2: Viewer ---
+// --- Page 2: Viewer & Comparison ---
 function updatePage2Viewer() {
     if (!BestSolution) return;
     document.getElementById('p2-fit-summary').textContent = `Best Fitness: ${BestFitness.toFixed(5)}`;
     const numWeeks = ProblemContext.calendar_length / 7;
 
-    // Fixing the null pointer issue by safely assigning innerHTML to the header directly
     document.getElementById('p2-skill-matrix-head').innerHTML = '<tr><th>Skill</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Sun</th><th>Total Score</th></tr>';
-
     const mBody = document.getElementById('p2-skill-matrix-body');
     mBody.innerHTML = '';
 
@@ -271,17 +278,67 @@ function updatePage2Viewer() {
     }
     document.getElementById('p2-daily-body').innerHTML = dBody;
 
+    // Standard Roster Browser (No calendar spans)
     const empBody = document.getElementById('p2-emp-table-body');
     empBody.innerHTML = '';
+
+    // Rota Comparison Setup
+    const compSel = document.getElementById('p2-compare-select');
+    compSel.innerHTML = '';
+
     ProblemContext.workers.forEach((w, idx) => {
         const rIdx = BestSolution[idx];
         const rObj = w.available_rotas[rIdx];
-        let cal = '';
-        for (let d = 0; d < ProblemContext.calendar_length; d++) {
-            cal += `<span class="${rObj.pattern[d] ? 'day-w' : 'day-off'}"></span>`;
-        }
-        empBody.innerHTML += `<tr><td>${w.worker_id}</td><td>Opt #${rIdx}</td><td>${rObj.preference_rank}</td><td>${w.skills.join(', ')}</td><td>${cal}</td></tr>`;
+        empBody.innerHTML += `<tr><td>${w.worker_id}</td><td>Opt #${rIdx}</td><td>${rObj.preference_rank}</td><td>${w.skills.join(', ')}</td></tr>`;
+        compSel.innerHTML += `<option value="${idx}">${w.name} (Opt #${rIdx})</option>`;
     });
+
+    renderRotaComparison();
+}
+
+// Vertical Rota Comparison Handlers
+function addRotaToCompare() {
+    const wIdx = parseInt(document.getElementById('p2-compare-select').value, 10);
+    if (!ComparedWorkers.includes(wIdx)) {
+        ComparedWorkers.push(wIdx);
+        renderRotaComparison();
+    }
+}
+
+function clearRotaComparison() {
+    ComparedWorkers = [];
+    renderRotaComparison();
+}
+
+function renderRotaComparison() {
+    const head = document.getElementById('p2-compare-head');
+    const body = document.getElementById('p2-compare-body');
+
+    if (ComparedWorkers.length === 0) {
+        head.innerHTML = '<tr><th>Day</th><th>Weekday</th></tr>';
+        body.innerHTML = '<tr><td colspan="2">Select workers to compare their assigned rotas.</td></tr>';
+        return;
+    }
+
+    let hHtml = '<tr><th>Day</th><th>Weekday</th>';
+    ComparedWorkers.forEach(wIdx => {
+        hHtml += `<th>${ProblemContext.workers[wIdx].name} (Opt #${BestSolution[wIdx]})</th>`;
+    });
+    hHtml += '</tr>';
+    head.innerHTML = hHtml;
+
+    let bHtml = '';
+    const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    for(let d = 0; d < ProblemContext.calendar_length; d++) {
+        bHtml += `<tr><td>${d+1}</td><td>${weekdays[d%7]}</td>`;
+        ComparedWorkers.forEach(wIdx => {
+            const rIdx = BestSolution[wIdx];
+            const isWorking = ProblemContext.workers[wIdx].available_rotas[rIdx].pattern[d] === 1;
+            bHtml += `<td style="background-color: ${isWorking ? '#27ae60' : '#ebedef'}; color: ${isWorking ? '#fff' : '#333'}; text-align: center; font-weight: bold;">${isWorking ? 'Work' : 'Off'}</td>`;
+        });
+        bHtml += '</tr>';
+    }
+    body.innerHTML = bHtml;
 }
 
 // --- Page 3: Linkage ---
@@ -411,36 +468,51 @@ function showWorkerLinkages() {
 // --- Page 4 & 5: PS Mining & Clustering ---
 window.MinedDB = null;
 
+const rawMetricLogic = {
+    'mean_fitness': (fm) => fm.length > 0 ? (fm.reduce((a,b)=>a+b,0)/fm.length) : NaN,
+    'mwu': (fm, fnm) => obj_mwu_test(fm, fnm),
+    'mwu_thresh': (fm, fnm) => obj_mwu_test_threshold(fm, fnm),
+    'weighted_var': (fm, fnm) => obj_weighted_variance(fm, fnm, window.MinedDB.N),
+    'atomicity': (fm, fnm, ps) => LinkageMatrix ? -(obj_atomicity(ps, LinkageMatrix)) : NaN,
+    'a_plus_i': (fm, fnm, ps) => LinkageMatrix ? -(obj_a_plus_i(ps, LinkageMatrix)) : NaN,
+    'star_count': (fm, fnm, ps) => -(obj_star_count(ps)),
+    'inverse_star_count': (fm, fnm, ps) => obj_inverse_star_count(ps),
+    'independence': (fm, fnm, ps) => LinkageMatrix ? obj_independence(ps, LinkageMatrix) : NaN,
+    'robustness': (fm) => fm.length > 0 ? Math.min(...fm) : NaN,
+    'sample_count': (fm) => fm.length,
+    'inverse_sample_count': (fm) => -fm.length
+};
+
 async function executePSMining() {
     if (ReferencePopulation.length === 0) return alert("Run solver first.");
-    const activeBoxes = Array.from(document.querySelectorAll('#p4-obj-list input:checked')).map(cb => cb.value);
-    if (activeBoxes.length === 0) return alert("Select at least one metric.");
+    ActiveMetrics = Array.from(document.querySelectorAll('#p4-obj-list input:checked')).map(cb => cb.value);
+    if (ActiveMetrics.length === 0) return alert("Select at least one metric.");
 
     window.MinedDB = new PRefDatabase(ReferencePopulation.map(p => p.solution), ReferencePopulation.map(p => p.fitness));
     const db = window.MinedDB;
     const L = ProblemContext.workers.length;
 
-    const metricLogic = {
-        'mean_fitness': (fm, fnm, ps) => obj_mean_fitness(fm),
-        'mwu': (fm, fnm, ps) => obj_mwu_test(fm, fnm),
-        'mwu_thresh': (fm, fnm, ps) => obj_mwu_test_threshold(fm, fnm),
-        'weighted_var': (fm, fnm, ps) => obj_weighted_variance(fm, fnm, db.N),
+    const objLogic = {
+        'mean_fitness': (fm) => obj_mean_fitness(fm),
+        'mwu': (fm, fnm) => obj_mwu_test(fm, fnm),
+        'mwu_thresh': (fm, fnm) => obj_mwu_test_threshold(fm, fnm),
+        'weighted_var': (fm, fnm) => obj_weighted_variance(fm, fnm, db.N),
         'atomicity': (fm, fnm, ps) => LinkageMatrix ? obj_atomicity(ps, LinkageMatrix) : 0,
         'a_plus_i': (fm, fnm, ps) => LinkageMatrix ? obj_a_plus_i(ps, LinkageMatrix) : 0,
         'star_count': (fm, fnm, ps) => obj_star_count(ps),
         'inverse_star_count': (fm, fnm, ps) => obj_inverse_star_count(ps),
         'independence': (fm, fnm, ps) => LinkageMatrix ? obj_independence(ps, LinkageMatrix) : 0,
-        'robustness': (fm, fnm, ps) => obj_robustness(fm),
-        'sample_count': (fm, fnm, ps) => obj_sample_count(fm),
-        'inverse_sample_count': (fm, fnm, ps) => obj_inverse_sample_count(fm)
+        'robustness': (fm) => obj_robustness(fm),
+        'sample_count': (fm) => obj_sample_count(fm),
+        'inverse_sample_count': (fm) => obj_inverse_sample_count(fm)
     };
 
     let objFuncs = [];
-    activeBoxes.forEach(id => {
+    ActiveMetrics.forEach(id => {
         objFuncs.push(ps => {
             let { matchIndices, notMatchIndices } = db.getMatches(ps);
             let { fMatch, fNotMatch } = db.getFitnessArrays(matchIndices, notMatchIndices);
-            let v = metricLogic[id](fMatch, fNotMatch, ps);
+            let v = objLogic[id](fMatch, fNotMatch, ps);
             return (isNaN(v) || v === null) ? Infinity : v;
         });
     });
@@ -463,21 +535,25 @@ async function executePSMining() {
         let { matchIndices, notMatchIndices } = db.getMatches(ind.ps);
         let { fMatch, fNotMatch } = db.getFitnessArrays(matchIndices, notMatchIndices);
 
-        let mFit = fMatch.length > 0 ? -(obj_mean_fitness(fMatch)) : -Infinity;
-        let starCnt = -(obj_star_count(ind.ps));
-        let atom = LinkageMatrix ? -(obj_atomicity(ind.ps, LinkageMatrix)) : 0;
-        let mwu = obj_mwu_test(fMatch, fNotMatch);
+        let metrics = {};
+        ActiveMetrics.forEach((id, index) => {
+            let readableVal = rawMetricLogic[id](fMatch, fNotMatch, ind.ps);
+            metrics[id] = { name: metricNames[id], val: readableVal, nsga_min: ind.objectives[index] };
+        });
 
         return {
             ps: ind.ps,
             fixed: ind.ps.filter(x => x !== -1).length,
             samples: fMatch.length,
-            meanFit: mFit,
-            starCnt: starCnt,
-            atomicity: atom,
-            mwu: mwu,
+            metrics: metrics,
             zSum: ind.z_sum
         };
+    });
+
+    const sortSel = document.getElementById('p5-sort');
+    sortSel.innerHTML = '<option value="minimax">Minimax Regret</option>';
+    ActiveMetrics.forEach(id => {
+        sortSel.innerHTML += `<option value="${id}">${metricNames[id]}</option>`;
     });
 
     document.getElementById('p4-status').textContent = `Done. Found ${MinedPartialSolutions.length} non-dominated patterns.`;
@@ -496,10 +572,11 @@ function renderPSCards() {
     const sortBy = document.getElementById('p5-sort').value;
     const doCluster = document.getElementById('p5-cluster').checked;
 
-    if (sortBy === 'mean_fitness') items.sort((a, b) => b.meanFit - a.meanFit);
-    else if (sortBy === 'simplicity') items.sort((a, b) => a.fixed - b.fixed);
-    else if (sortBy === 'atomicity') items.sort((a, b) => b.atomicity - a.atomicity);
-    else items.sort((a, b) => a.zSum - b.zSum);
+    if (sortBy === 'minimax') {
+        items.sort((a, b) => a.zSum - b.zSum);
+    } else {
+        items.sort((a, b) => a.metrics[sortBy].nsga_min - b.metrics[sortBy].nsga_min);
+    }
 
     if (doCluster && items.length > 2) {
         let clusters = [];
@@ -528,19 +605,20 @@ function renderPSCards() {
             if(item.ps[j] !== -1) rules.push(`Worker #${j} -> Option #${item.ps[j]}`);
         }
 
+        let metricHtml = `<span class="ps-tag" style="background:#27ae60; color:#fff;">Matches: ${item.samples}</span>`;
+        ActiveMetrics.forEach(id => {
+            let v = item.metrics[id].val;
+            let displayValue = (id.includes('mwu') ? v.toExponential(3) : v.toFixed(4));
+            if (id.includes('count')) displayValue = Math.abs(v).toString();
+            metricHtml += `<span class="ps-tag">${metricNames[id]}: ${displayValue}</span>`;
+        });
+
         container.innerHTML += `
             <div class="ps-card">
-                <div class="ps-title" style="cursor: pointer;" onclick="toggleAccordion('ps-rules-${idx}')">
-                    Partial Solution ${idx + 1} (${item.fixed} Fixed Workers) <span>▼ Click to expand rules</span>
+                <div class="ps-title" onclick="toggleAccordion('ps-rules-${idx}')">
+                    Partial Solution ${idx + 1} (${item.fixed} Fixed Workers) <span style="font-weight:normal;">▼ Click to expand</span>
                 </div>
-                <div style="margin: 8px 0;">
-                    <span class="ps-tag">Mean Fitness: ${item.meanFit.toFixed(4)}</span>
-                    <span class="ps-tag">Simplicity (* Count): ${item.starCnt}</span>
-                    <span class="ps-tag">Atomicity: ${item.atomicity.toFixed(4)}</span>
-                    <span class="ps-tag" style="background:#27ae60; color:#fff;">Matches: ${item.samples}</span>
-                    <button class="action-btn" style="padding: 2px 6px; font-size: 11px; margin: 2px;" onclick="this.nextElementSibling.style.display='inline-block'; this.style.display='none'">Show MWU P-Val</button>
-                    <span class="ps-tag" style="display:none; background:#f39c12; color:#fff;">MWU P-Val: ${item.mwu.toExponential(3)}</span>
-                </div>
+                <div style="margin: 8px 0;">${metricHtml}</div>
                 <div id="ps-rules-${idx}" class="ps-rules-content">
                     <strong>Fixed Assignments:</strong><br>
                     ${rules.join('<br>')}
@@ -569,14 +647,12 @@ function showDescriptors(uiIndex) {
     let item = MinedPartialSolutions[uiIndex];
     let area = document.getElementById(`desc-${uiIndex}`);
 
-    // Using 1000 samples for the ECDF
     let descriptors = calculate_descriptors(item.ps, window.MinedDB, GlobalProxyData, threshold, 1000, targetSol);
 
     const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     let gridDescriptors = [];
     let otherDescriptors = [];
 
-    // Separate grid-based descriptions from general proxy descriptors
     descriptors.forEach(d => {
         let match = d.name.match(/^Penalty:\s+(.+?)\s+-\s+(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/);
         if (match && match[1] !== "All Skills") {
@@ -588,7 +664,6 @@ function showDescriptors(uiIndex) {
 
     let html = `<strong>Extreme Descriptors (Threshold ${(threshold * 100).toFixed(0)}%):</strong><br>`;
 
-    // Construct Grid Matrix if > 3 skill-day penalties triggered
     if (gridDescriptors.length > 3) {
         let skillsSet = new Set(gridDescriptors.map(g => g.skill));
         let skillsArr = Array.from(skillsSet).sort();
@@ -615,7 +690,6 @@ function showDescriptors(uiIndex) {
         tableHtml += `</tbody></table>`;
         html += tableHtml;
     } else {
-        // Fallback to tags if not enough grid descriptors to warrant table
         otherDescriptors.push(...gridDescriptors);
     }
 
@@ -660,6 +734,12 @@ function applyModification() {
     updateWorkerModificationUI();
 }
 
+function removeModification(wIdx) {
+    ActiveModifications.delete(wIdx);
+    recalculateModifiedFitness();
+    updateWorkerModificationUI();
+}
+
 function resetModifications() {
     ActiveModifications.clear();
     recalculateModifiedFitness();
@@ -668,20 +748,43 @@ function resetModifications() {
 
 function recalculateModifiedFitness() {
     let modSol = [...BestSolution];
-    for (let [w, r] of ActiveModifications.entries()) modSol[w] = r;
+    let isolatedDeltas = new Map();
+
+    for (let [w, r] of ActiveModifications.entries()) {
+        modSol[w] = r;
+
+        let isoSol = [...BestSolution];
+        isoSol[w] = r;
+        let isoFit = evaluateStaffRostering(isoSol).fitness;
+        isolatedDeltas.set(w, isoFit - BestFitness);
+    }
+
     const res = evaluateStaffRostering(modSol);
     const nFit = res.fitness;
-    const delta = nFit - BestFitness;
+    const compoundDelta = nFit - BestFitness;
 
     document.getElementById('p6-base-fit').textContent = BestFitness.toFixed(4);
     document.getElementById('p6-mod-fit').textContent = nFit.toFixed(4);
-    document.getElementById('p6-fit-delta').textContent = (delta >= 0 ? '+' : '') + delta.toFixed(4);
-    document.getElementById('p6-fit-delta').style.color = delta >= 0 ? '#27ae60' : '#c0392b';
+    document.getElementById('p6-fit-delta').textContent = (compoundDelta >= 0 ? '+' : '') + compoundDelta.toFixed(4);
+    document.getElementById('p6-fit-delta').style.color = compoundDelta >= 0 ? '#27ae60' : '#c0392b';
 
     const tb = document.getElementById('p6-mods-body');
     tb.innerHTML = '';
-    if (ActiveModifications.size === 0) tb.innerHTML = '<tr><td colspan="4">No active mods.</td></tr>';
+    if (ActiveModifications.size === 0) {
+        tb.innerHTML = '<tr><td colspan="5">No manual modifications active.</td></tr>';
+        return;
+    }
     for (let [w, r] of ActiveModifications.entries()) {
-        tb.innerHTML += `<tr><td>Worker #${w}</td><td>Opt #${BestSolution[w]}</td><td>Opt #${r}</td><td>Active</td></tr>`;
+        let isoD = isolatedDeltas.get(w);
+        let color = isoD >= 0 ? '#27ae60' : '#c0392b';
+        let isoText = `<span style="color: ${color}; font-weight: bold;">${(isoD >= 0 ? '+' : '') + isoD.toFixed(4)}</span>`;
+
+        tb.innerHTML += `<tr>
+            <td>Worker #${w}</td>
+            <td>Opt #${BestSolution[w]}</td>
+            <td>Opt #${r}</td>
+            <td>${isoText}</td>
+            <td><button class="action-btn" onclick="removeModification(${w})" style="padding: 2px 8px; font-size: 11px; background: #c0392b;">Revert</button></td>
+        </tr>`;
     }
 }
