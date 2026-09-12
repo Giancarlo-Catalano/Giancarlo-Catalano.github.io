@@ -725,7 +725,7 @@ function showDescriptors(uiIndex) {
     let item = MinedPartialSolutions[uiIndex];
     let area = document.getElementById(`desc-${uiIndex}`);
 
-    let descriptors = calculate_descriptors(item.ps, window.MinedDB, GlobalProxyData, threshold, 1000, targetSol);
+    let descriptors = calculate_descriptors(item.ps, window.MinedDB, GlobalProxyData, threshold, 500, targetSol);
 
     const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     let gridDescriptors = [];
