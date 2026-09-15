@@ -226,7 +226,12 @@ class PS_NSGAII {
                 if (Math.random() < 0.5) {
                     let p1 = this.tournamentSelection(population, ranks);
                     let p2 = this.tournamentSelection(population, ranks);
-                    let [c1, c2] = OperatorsGlobal.crossover(p1, p2, this.L);
+                    let c1, c2;
+                    if (this.operators.crossover) {
+                        [c1, c2] = this.operators.crossover(p1, p2, this.L);
+                    } else {
+                        [c1, c2] = OperatorsGlobal.crossover(p1, p2, this.L);
+                    }
                     children.push(this.operators.mutate(c1));
                     children.push(this.operators.mutate(c2));
                 } else {
@@ -379,7 +384,7 @@ function generate_random_ps_of_size_subset_of(fixed_count, L, search_space, solu
 
     for (let i = 0; i < fixed_count; i++) {
         let idx = indices[i];
-        ps[idx] = solution_to_explain[idx]
+        ps[idx] = solution_to_explain[idx];
     }
     return ps;
 }
