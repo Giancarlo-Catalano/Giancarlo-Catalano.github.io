@@ -1,4 +1,5 @@
 const App = {
+    isExplanationMode: false, // Starts in non-explanation mode
     Data: {
         problem: null,
         pref: [],
@@ -14,7 +15,7 @@ const App = {
     },
     Miner: {
         results: [],
-        displayedItems: [], // FIX: Source of truth for the currently rendered UI cards
+        displayedItems: [],
         activeMetrics: [],
         names: {
             'mean_fitness': 'Mean Fitness', 'mwu': 'MWU P-Val', 'mwu_thresh': 'MWU (Thresh)',
@@ -64,6 +65,34 @@ const App = {
         }).catch(err => {
             document.getElementById('p1-progress').textContent = "Failed to load data: " + err.message;
         });
+
+        // Global Keydown listener for the "X" toggle
+        window.addEventListener('keydown', (e) => {
+            // Ignore the keystroke if the user is typing inside an input box or dropdown
+            const activeTag = document.activeElement.tagName.toLowerCase();
+            if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') return;
+
+            if (e.key.toLowerCase() === 'x') {
+                this.isExplanationMode = !this.isExplanationMode;
+                this.updateExplanationModeUI();
+            }
+        });
+    },
+
+    updateExplanationModeUI() {
+        const displayStyle = this.isExplanationMode ? 'inline-block' : 'none';
+
+        document.getElementById('tab-btn-3').style.display = displayStyle;
+        document.getElementById('tab-btn-4').style.display = displayStyle;
+        document.getElementById('tab-btn-5').style.display = displayStyle;
+
+        // Safety route: if turning OFF explanation mode while viewing a hidden tab, route back to page 1
+        if (!this.isExplanationMode) {
+            const activeContent = document.querySelector('.tab-content.active');
+            if (activeContent && ['page3', 'page4', 'page5'].includes(activeContent.id)) {
+                this.switchTab('page1');
+            }
+        }
     },
 
     switchTab(tabId) {
@@ -73,9 +102,9 @@ const App = {
         document.querySelector(`.tab-btn[onclick="App.switchTab('${tabId}')"]`).classList.add('active');
 
         if (tabId === 'page2' && App.Data.bestSol) App.Viewer.render();
-        if (tabId === 'page4') App.Miner.updateConstraintUI(); // NEW
+        if (tabId === 'page4') App.Miner.updateConstraintUI();
         if (tabId === 'page6' && App.Data.bestSol) App.Sandbox.init();
-    }
+    },
 };
 
 window.addEventListener('DOMContentLoaded', () => App.init());

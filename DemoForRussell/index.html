@@ -17,9 +17,10 @@
     <div id="tab-header">
         <button class="tab-btn active" onclick="App.switchTab('page1')">1: iRoster Solver</button>
         <button class="tab-btn" onclick="App.switchTab('page2')">2: Best Solution Viewer</button>
-        <button class="tab-btn" onclick="App.switchTab('page3')">3: Linkage Learning</button>
-        <button class="tab-btn" onclick="App.switchTab('page4')">4: PS Mining Setup</button>
-        <button class="tab-btn" onclick="App.switchTab('page5')">5: Discovered PSs</button>
+        <!-- Hidden by default for Non-Explanation Mode -->
+        <button class="tab-btn" id="tab-btn-3" onclick="App.switchTab('page3')" style="display: none;">3: Linkage Learning</button>
+        <button class="tab-btn" id="tab-btn-4" onclick="App.switchTab('page4')" style="display: none;">4: PS Mining Setup</button>
+        <button class="tab-btn" id="tab-btn-5" onclick="App.switchTab('page5')" style="display: none;">5: Discovered PSs</button>
         <button class="tab-btn" onclick="App.switchTab('page6')">6: Solution Modification</button>
         <button class="tab-btn" onclick="App.switchTab('page7')" style="background-color: #8b0000; color: white; border-color: #8b0000;">7: Leave Simulator</button>
     </div>
