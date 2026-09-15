@@ -315,6 +315,15 @@
         </div>
     </div>
 
+    <!-- Persistent PS Pane -->
+    <div id="ps-sticky-pane" style="display: none; position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 4px solid #3498db; box-shadow: 0 -4px 15px rgba(0,0,0,0.1); padding: 15px 25px; z-index: 1000; max-height: 35vh; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h4 style="margin: 0; color: #3498db;">Pinned Partial Solution</h4>
+            <button onclick="document.getElementById('ps-sticky-pane').style.display='none'" style="background: transparent; border: none; font-size: 18px; cursor: pointer; color: #7f8c8d; font-weight: bold;">✖</button>
+        </div>
+        <div id="ps-sticky-content"></div>
+    </div>
+
     <script src="../PSs/PS_objectives.js"></script>
     <script src="../PSs/PS_find_linkage_table.js"></script>
     <script src="../PSs/PS_NSGAII.js"></script>

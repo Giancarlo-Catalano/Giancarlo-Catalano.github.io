@@ -86,8 +86,10 @@ const App = {
         document.getElementById('tab-btn-4').style.display = displayStyle;
         document.getElementById('tab-btn-5').style.display = displayStyle;
 
-        // Safety route: if turning OFF explanation mode while viewing a hidden tab, route back to page 1
+        // Hide the sticky pane when turning off explanation mode
         if (!this.isExplanationMode) {
+            document.getElementById('ps-sticky-pane').style.display = 'none';
+
             const activeContent = document.querySelector('.tab-content.active');
             if (activeContent && ['page3', 'page4', 'page5'].includes(activeContent.id)) {
                 this.switchTab('page1');
@@ -191,6 +193,7 @@ App.Solver = {
         const log = document.getElementById('p1-log');
         let history = [], pop = [];
 
+        App.Sandbox.initialized = false; App.Sandbox.mods.clear();
         for (let i = 0; i < popSize; i++) {
             let sol = sSpace.map(c => Math.floor(Math.random() * c));
             let res = App.Core.evaluate(sol);
@@ -572,6 +575,27 @@ App.Miner = {
         }
     },
 
+    keepInView(uiIndex) {
+        let item = this.displayedItems[uiIndex];
+
+        let rulesHtml = '<table class="data-table" style="margin-top: 10px;"><thead><tr><th>Worker</th><th>Instruction</th></tr></thead><tbody>';
+        for (let j = 0; j < item.ps.length; j++) {
+            if (item.ps[j] !== -1) {
+                const w = App.Data.problem.workers[j];
+                const rIdx = item.ps[j];
+                const rObj = w.available_rotas[rIdx];
+                rulesHtml += `<tr>
+                    <td><strong>${w.name}</strong><br><span style="font-size: 10px; color: #666;">${w.skills.join(', ')}</span></td>
+                    <td>Assign Option #${rIdx} (${rObj.rota_id})</td>
+                </tr>`;
+            }
+        }
+        rulesHtml += '</tbody></table>';
+
+        document.getElementById('ps-sticky-content').innerHTML = rulesHtml;
+        document.getElementById('ps-sticky-pane').style.display = 'block';
+    },
+
     async execute() {
         if (App.Data.pref.length === 0) return alert("Run solver first.");
         this.activeMetrics = Array.from(document.querySelectorAll('#p4-obj-list input:checked')).map(cb => cb.value);
@@ -785,7 +809,10 @@ App.Miner = {
                     <div class="ps-title" onclick="document.getElementById('ps-rules-${idx}').classList.toggle('expanded')">
                         Partial Solution ${idx + 1} (${item.fixed} Fixed Workers) <span style="font-weight:normal; font-size: 10px;">▼ Click to expand Rules</span>
                     </div>
-                    <div style="margin: 8px 0;">${metricHtml}</div>
+                    <div style="margin: 8px 0;">${metricHtml}  
+                        <button class="action-btn" onclick="App.Miner.keepInView(${idx})" style="background: #f39c12; margin-left: 10px;">Keep in View</button>
+                    </div> 
+                    
                     <div id="ps-rules-${idx}" class="ps-rules-content">
                         <strong>Fixed Assignments:</strong><br>
                         ${rulesHtml}
@@ -1038,7 +1065,8 @@ App.Miner = {
         } else {
             otherDescriptors.forEach(d => {
                 let isHigh = d.percentile > 0.5;
-                html += `<span class="ps-tag" style="background:${isHigh ? '#e74c3c' : '#27ae60'}; color:#fff;">${d.name} <br>Avg: ${d.average.toFixed(2)} (P: ${(d.percentile*100).toFixed(0)}%)</span>`;
+                html += `<span class="ps-tag" style="background:${isHigh ? '#800af6' : '#800af6'}; color:#fff;">${d.name} <br>Avg: ${d.average.toFixed(2)} (P: ${(d.percentile*100).toFixed(0)}%)</span>`;
+                // html += `<span class="ps-tag" style="background:${isHigh ? '#e73cd0' : '#27ae60'}; color:#fff;">${d.name} <br>Avg: ${d.average.toFixed(2)} (P: ${(d.percentile*100).toFixed(0)}%)</span>`;
             });
         }
 
@@ -1049,8 +1077,16 @@ App.Miner = {
 // --- Page 6: Sandbox ---
 App.Sandbox = {
     mods: new Map(),
+    initialized: false, // NEW: Track initialization state
 
     init() {
+        // If already initialized for this solution, just update the UI and return
+        if (this.initialized) {
+            this.updateUI();
+            this.evaluateAndRender();
+            return;
+        }
+
         this.mods.clear();
         const wSel = document.getElementById('p6-worker-select');
         wSel.innerHTML = '<option value="">-- Select Worker --</option>';
@@ -1059,7 +1095,9 @@ App.Sandbox = {
         });
         this.updateUI();
         this.evaluateAndRender();
+        this.initialized = true; // Mark as initialized
     },
+
 
     updateUI() {
         const wIdxStr = document.getElementById('p6-worker-select').value;
