@@ -860,8 +860,8 @@ App.Miner = {
         const getPSMetrics = (pattern) => {
             let fixed = pattern.map((rIdx, wIdx) => ({rIdx, wIdx})).filter(x => x.rIdx !== -1);
             let m = {
-                "PS: Avg Hamming Distance": 0,
-                "PS: Avg Skill Jaccard": 0,
+                "PS: Rota similarity": 0,
+                "PS: Skill similarity": 0,
                 "PS: Preferred Rotas Count": 0,
                 "PS: Union of Skills Size": 0
             };
@@ -907,8 +907,8 @@ App.Miner = {
                         pairs++;
                     }
                 }
-                m["PS: Avg Hamming Distance"] = totalHamming / pairs;
-                m["PS: Avg Skill Jaccard"] = totalJaccard / pairs;
+                m["PS: Rota similarity"] = totalHamming / pairs;
+                m["PS: Skill similarity"] = totalJaccard / pairs;
             }
             return m;
         };
