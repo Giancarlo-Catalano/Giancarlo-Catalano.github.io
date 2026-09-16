@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Muslim Prayer Time Guidance for Teachers</title>
+    <style>
+        :root {
+            --light-green: #76b72a;
+            --dark-green: #006938;
+            --dark-blue: #003A3D;
+            --dark-magenta: #511535;
+            --bg-colour: #f9f9f9;
+            --text-colour: #1a1a1a;
+            --container-bg: #ffffff;
+            --border-colour: #cccccc;
+            --past-bg: #e0e0e0;
+            --past-text: #555555;
+            --error-bg: #ffdddd;
+            --error-text: #d8000c;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-colour);
+            color: var(--text-colour);
+            line-height: 1.6;
+            margin: 0;
+            padding: 1rem;
+            font-size: 105%;
+        }
+
+        h1, h2, h3 {
+            color: var(--dark-blue);
+        }
+
+        .status-bar {
+            background-color: var(--container-bg);
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-colour);
+            margin-bottom: 1rem;
+            font-weight: bold;
+        }
+
+        #notification-area {
+            display: none;
+            background-color: var(--error-bg);
+            color: var(--error-text);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-weight: bold;
+            border: 2px solid var(--error-text);
+        }
+
+        #ramadan-banner {
+            display: none;
+            background-color: var(--dark-magenta);
+            color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            border: 2px solid var(--border-colour);
+        }
+
+        .main-content {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .pane {
+            flex: 1 1 300px;
+            background-color: var(--container-bg);
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-colour);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-colour);
+        }
+
+        th {
+            background-color: var(--dark-blue);
+            color: white;
+        }
+
+        .past-prayer {
+            background-color: var(--past-bg);
+            color: var(--past-text);
+        }
+
+        .bottom-section {
+            background-color: var(--container-bg);
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-colour);
+        }
+
+        .highlight-event {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--dark-magenta);
+            background-color: #f0e6eb;
+            padding: 0.5rem;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        ul {
+            padding-left: 1.5rem;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Muslim Prayer Time Guidance for Teachers</h1>
+
+    <div id="notification-area"></div>
+
+    <div class="status-bar">
+        Status: <span id="location-status">Detecting location...</span>
+    </div>
+
+    <div id="ramadan-banner">
+        <h2>Ramadan is currently active</h2>
+        <p>Observing students are fasting from dawn to sunset. They cannot consume food or water during this time. Please be mindful of energy levels, especially in the afternoon.</p>
+    </div>
+
+    <div class="main-content">
+        <!-- Left Pane: Timetable -->
+        <div class="pane left-pane">
+            <h2>Today's Prayer Schedule</h2>
+            <p><strong>Date:</strong> <span id="current-date">Loading...</span></p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Prayer</th>
+                        <th>Time</th>
+                        <th>Notes / Location</th>
+                    </tr>
+                </thead>
+                <tbody id="prayer-table-body">
+                    <tr><td colspan="3">Waiting for location data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Right Pane: Coming Up -->
+        <div class="pane right-pane">
+            <h2>Coming Up</h2>
+            <div id="coming-up-content">
+                <p>Loading next event...</p>
+            </div>
+
+            <div id="fasting-status" style="display: none; margin-top: 1.5rem; border-top: 2px solid var(--border-colour); padding-top: 1rem;">
+                <h3>Fasting Status</h3>
+                <p>Students last ate before: <strong><span id="suhoor-time">--:--</span> (Fajr)</strong></p>
+                <p>Students can eat again at: <strong><span id="iftar-time">--:--</span> (Maghrib)</strong></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-section">
+        <h2>Information about Ramadan</h2>
+        <p><strong>Ramadan Dates:</strong> The month of Ramadan is expected to start around <strong><span id="ramadan-yearly-start">loading...</span></strong> and end around <strong><span id="ramadan-yearly-end">loading...</span></strong>.</p>
+
+        <p><strong>Practical considerations for students:</strong></p>
+        <ul>
+            <li><strong>Fasting:</strong> Students abstain from all food and drink (including water) from dawn (Fajr) until sunset (Maghrib).</li>
+            <li><strong>Energy Levels:</strong> You may notice students being tired, dehydrated, or struggling with concentration, especially during late afternoon classes.</li>
+            <li><strong>Breaking the Fast (Iftar):</strong> If you have classes around sunset, students will need to break their fast immediately. It is helpful to allow them to eat a small snack in class, or grant a short 10-minute break.</li>
+            <li><strong>Friday Prayers (Jumu'ah):</strong> Takes place early Friday afternoon. This is a congregational prayer requiring a sermon. Students usually need to travel to a mosque or designated large hall, meaning they will need more time away from the building.</li>
+            <li><strong>Assessments:</strong> Some students may require slight adjustments if assessments fall late in the day when their energy is lowest.</li>
+        </ul>
+    </div>
+
+    <script>
+        let prayerData = null;
+
+        function showNotification(message) {
+            const notif = document.getElementById('notification-area');
+            notif.innerHTML = "Error: " + message;
+            notif.style.display = 'block';
+        }
+
+        function hideNotification() {
+            document.getElementById('notification-area').style.display = 'none';
+        }
+
+        function initLocation() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        document.getElementById('location-status').innerText = `Location detected automatically`;
+                        fetchData(lat, lng);
+                    },
+                    (error) => {
+                        showNotification("Location access denied or unavailable. Please enable location permissions in your browser settings and refresh the page.");
+                        document.getElementById('location-status').innerText = "Location access failed.";
+                        document.getElementById('prayer-table-body').innerHTML = '<tr><td colspan="3">Location required to calculate times.</td></tr>';
+                    }
+                );
+            } else {
+                showNotification("Geolocation is not supported by your browser.");
+                document.getElementById('location-status').innerText = "Location not supported.";
+            }
+        }
+
+        async function fetchData(lat, lng) {
+            hideNotification();
+            const apiUrl = `https://api.aladhan.com/v1/timings?latitude=${lat}&longitude=${lng}&method=3`;
+
+            try {
+                const response = await fetch(apiUrl);
+                if (!response.ok) throw new Error("Failed to connect to the server.");
+                const data = await response.json();
+                prayerData = data.data;
+
+                updateInterface();
+                fetchRamadanDates(prayerData.date.hijri.year, prayerData.date.hijri.month.number);
+
+            } catch (error) {
+                showNotification("Could not retrieve prayer data. Please check your internet connection.");
+            }
+        }
+
+        async function fetchRamadanDates(currentHijriYear, currentHijriMonth) {
+            try {
+                const targetYear = parseInt(currentHijriMonth) > 9 ? parseInt(currentHijriYear) + 1 : parseInt(currentHijriYear);
+
+                const startRes = await fetch(`https://api.aladhan.com/v1/hToG?date=01-09-${targetYear}`);
+                const startData = await startRes.json();
+                const startDateObj = startData.data.gregorian;
+                const startDateStr = `${startDateObj.day} ${startDateObj.month.en} ${startDateObj.year}`;
+
+                const endRes = await fetch(`https://api.aladhan.com/v1/hToG?date=01-10-${targetYear}`);
+                const endData = await endRes.json();
+                const endDateObj = endData.data.gregorian;
+                const endDateStr = `${endDateObj.day} ${endDateObj.month.en} ${endDateObj.year}`;
+
+                document.getElementById('ramadan-yearly-start').innerText = startDateStr;
+                document.getElementById('ramadan-yearly-end').innerText = endDateStr;
+            } catch(e) {
+                document.getElementById('ramadan-yearly-start').innerText = "Unavailable";
+                document.getElementById('ramadan-yearly-end').innerText = "Unavailable";
+            }
+        }
+
+        function updateInterface() {
+            if (!prayerData) return;
+
+            const timings = prayerData.timings;
+            const hijriMonth = prayerData.date.hijri.month.number;
+            const isRamadan = (hijriMonth === 9);
+
+            document.getElementById('current-date').innerText = prayerData.date.readable;
+
+            const banner = document.getElementById('ramadan-banner');
+            const fastingStatus = document.getElementById('fasting-status');
+
+            if (isRamadan) {
+                banner.style.display = 'block';
+                fastingStatus.style.display = 'block';
+                document.getElementById('suhoor-time').innerText = timings.Fajr;
+                document.getElementById('iftar-time').innerText = timings.Maghrib;
+            } else {
+                banner.style.display = 'none';
+                fastingStatus.style.display = 'none';
+            }
+
+            const tbody = document.getElementById('prayer-table-body');
+            tbody.innerHTML = '';
+
+            const prayers = [
+                { name: 'Fajr', key: 'Fajr', notes: 'Dawn prayer. Can be done in a standard prayer room.' },
+                { name: 'Dhuhr', key: 'Dhuhr', notes: getDhuhrNotes() },
+                { name: 'Asr', key: 'Asr', notes: 'Afternoon prayer. Can be done in a standard prayer room.' },
+                { name: 'Maghrib', key: 'Maghrib', notes: 'Sunset prayer. Can be done in a standard prayer room. (Fast breaks here if Ramadan)' },
+                { name: 'Isha', key: 'Isha', notes: 'Night prayer. Usually done at home or local prayer room.' }
+            ];
+
+            const now = new Date();
+            let nextPrayerFound = false;
+            let comingUpHTML = '';
+
+            prayers.forEach(prayer => {
+                const timeString = timings[prayer.key];
+                const prayerTimeObj = convertTimeToDate(timeString);
+                const isPast = now > prayerTimeObj;
+
+                const tr = document.createElement('tr');
+                if (isPast) tr.className = 'past-prayer';
+
+                tr.innerHTML = `
+                    <td><strong>${prayer.name}</strong></td>
+                    <td>${timeString}</td>
+                    <td>${prayer.notes}</td>
+                `;
+                tbody.appendChild(tr);
+
+                if (!isPast && !nextPrayerFound) {
+                    nextPrayerFound = true;
+                    comingUpHTML = `
+                        <p>The next prayer is:</p>
+                        <div class="highlight-event">${prayer.name} at ${timeString}</div>
+                    `;
+                    if (isRamadan && prayer.name === 'Maghrib') {
+                        comingUpHTML += `<p><strong>Note:</strong> Students will break their fast at this time.</p>`;
+                    }
+                }
+            });
+
+            if (!nextPrayerFound) {
+                comingUpHTML = `<p>All prayers for today have passed.</p>`;
+            }
+
+            document.getElementById('coming-up-content').innerHTML = comingUpHTML;
+        }
+
+        function getDhuhrNotes() {
+            const today = new Date().getDay();
+            if (today === 5) {
+                return 'Note: Jumu\'ah (Friday Prayer) replaces standard Dhuhr. Requires a congregation and sermon. Students will likely need to leave the building and get a bus to a mosque or designated large hall.';
+            }
+            return 'Midday prayer. Can be done in a standard prayer room in the building.';
+        }
+
+        function convertTimeToDate(timeStr) {
+            const [hours, minutes] = timeStr.split(':');
+            const date = new Date();
+            date.setHours(parseInt(hours, 10));
+            date.setMinutes(parseInt(minutes, 10));
+            date.setSeconds(0);
+            return date;
+        }
+
+        window.onload = initLocation;
+    </script>
+</body>
+</html>
