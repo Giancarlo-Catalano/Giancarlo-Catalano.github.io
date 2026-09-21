@@ -86,7 +86,7 @@
                 <h3 class="panel-title">Employee Roster Browser</h3>
                 <div class="table-wrap" style="max-height: 400px;">
                     <table class="data-table" id="p2-emp-table">
-                        <thead><tr><th>Employee ID</th><th>Assigned Rota</th><th>Available Options</th><th>Skills</th></tr></thead>
+                        <thead><tr><th>Employee ID</th><th>Assigned Rota</th><th>Skills</th><th>Available Rotas</th></tr></thead>
                         <tbody id="p2-emp-table-body"></tbody>
                     </table>
                 </div>
@@ -232,7 +232,7 @@
                 </select>
 
                 <label style="margin: 0;">Threshold:</label>
-                <input type="number" id="desc-threshold" value="0.1" step="0.01" min="0" max="0.5" style="width: 70px; margin: 0;" onchange="App.Miner.clearDescriptors()">
+                <input type="number" id="desc-threshold" value="0.01" step="0.01" min="0" max="0.5" style="width: 70px; margin: 0;" onchange="App.Miner.clearDescriptors()">
 
                 <label style="margin: 0;">Samples:</label>
                 <input type="number" id="desc-samples" value="500" step="100" min="100" style="width: 80px; margin: 0;" onchange="App.Miner.clearDescriptors()">
