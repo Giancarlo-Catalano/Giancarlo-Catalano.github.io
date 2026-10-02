@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Flag Trainer</title>
+    <style>
+        body {
+            background-color: #000033; /* Dark blue background */
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden; /* No scrolling */
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+        }
+
+        #app {
+            width: 100%;
+            max-width: 800px; /* Limits width on desktop for better readability */
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- Top Half --- */
+        #top-half {
+            height: 50vh;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            padding-top: 10px;
+        }
+
+        #counter {
+            height: 30px;
+            color: white;
+            text-align: center;
+            font-size: 1.2rem;
+            line-height: 30px;
+        }
+
+        #flag-container {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        #flag-image {
+            background-color: white; /* Flag on white background */
+            padding: 10px;
+            max-height: 100%;
+            max-width: 100%;
+            object-fit: contain; /* Proportional scaling */
+            box-sizing: border-box;
+            display: none; /* Hidden until loaded */
+        }
+
+        /* --- Bottom Half --- */
+        #bottom-half {
+            height: 50vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-evenly;
+            padding-bottom: 20px;
+            box-sizing: border-box;
+        }
+
+        .btn-slot {
+            flex: 1; /* Space for exactly 5 buttons of same height */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+
+        .option-btn {
+            width: 70%;
+            height: 80%;
+            background-color: white;
+            color: black;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            border: none;
+            border-radius: 0; /* No rounded corners */
+            padding: 0 10px;
+            box-sizing: border-box;
+            cursor: pointer;
+            white-space: nowrap; /* Forces text onto a single line */
+            overflow: hidden;
+        }
+
+        #next-btn {
+            width: 90%; /* Wider than options */
+            height: 80%;
+            background-color: #0055ff; /* Blue background */
+            color: white;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            font-size: 1.5rem;
+            border: none;
+            border-radius: 0;
+            cursor: pointer;
+            visibility: hidden; /* Invisible until a choice is made */
+        }
+
+        /* --- States --- */
+        .correct-guess { background-color: lightgreen !important; }
+        .wrong-guess { background-color: red !important; color: white !important; }
+        .missed-correct { background-color: yellow !important; }
+        .grayed-out { background-color: #888888 !important; color: #dddddd !important; }
+
+        /* --- End Screen --- */
+        #end-screen {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100%;
+            color: white;
+            text-align: center;
+            font-size: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app">
+        <div id="top-half">
+            <div id="counter">Loading...</div>
+            <div id="flag-container">
+                <img id="flag-image" src="" alt="Country Flag">
+            </div>
+        </div>
+
+        <div id="bottom-half">
+            <div class="btn-slot"><button class="option-btn" id="opt-0"></button></div>
+            <div class="btn-slot"><button class="option-btn" id="opt-1"></button></div>
+            <div class="btn-slot"><button class="option-btn" id="opt-2"></button></div>
+            <div class="btn-slot"><button class="option-btn" id="opt-3"></button></div>
+            <div class="btn-slot"><button id="next-btn">NEXT</button></div>
+        </div>
+    </div>
+
+    <div id="end-screen">
+        <h2>Training Complete!</h2>
+        <p id="final-score"></p>
+    </div>
+
+    <script>
+        let countriesData = {};
+        let countryCodes = [];
+        let currentIndex = 0;
+        let correctCount = 0;
+        let currentCode = "";
+        let answered = false;
+
+        // Fetch data and initialize app
+        async function init() {
+            try {
+                const response = await fetch('data/countries.json');
+                countriesData = await response.json();
+                countryCodes = Object.keys(countriesData);
+
+                // Shuffle the entire dataset once at the start
+                shuffleArray(countryCodes);
+
+                document.getElementById('flag-image').style.display = 'block';
+                loadQuestion();
+            } catch (error) {
+                console.error("Error loading countries.json:", error);
+                document.getElementById('counter').innerText = "Error loading data.";
+            }
+        }
+
+        function loadQuestion() {
+            if (currentIndex >= countryCodes.length) {
+                showEndScreen();
+                return;
+            }
+
+            answered = false;
+            currentCode = countryCodes[currentIndex];
+
+            updateCounter();
+
+            // Set Flag image (filenames are lower-case)
+            const img = document.getElementById('flag-image');
+            img.src = `data/svg/${currentCode.toLowerCase()}.svg`;
+
+            // Prepare exactly 4 options (1 correct + 3 random)
+            let options = [currentCode];
+            while (options.length < 4) {
+                const randomCode = countryCodes[Math.floor(Math.random() * countryCodes.length)];
+                if (!options.includes(randomCode)) {
+                    options.push(randomCode);
+                }
+            }
+            shuffleArray(options);
+
+            // Populate buttons
+            const optionBtns = document.querySelectorAll('.option-btn');
+            optionBtns.forEach((btn, index) => {
+                const optCode = options[index];
+                btn.textContent = countriesData[optCode];
+                btn.dataset.code = optCode;
+                btn.className = 'option-btn'; // Reset classes
+                btn.disabled = false;
+            });
+
+            document.getElementById('next-btn').style.visibility = 'hidden';
+
+            // Allow the browser to render text before attempting to shrink it
+            requestAnimationFrame(() => {
+                setTimeout(adjustAllFonts, 10);
+            });
+        }
+
+        function handleGuess(e) {
+            if (answered) return;
+            answered = true;
+
+            const btn = e.target;
+            const guessedCode = btn.dataset.code;
+            const optionBtns = document.querySelectorAll('.option-btn');
+
+            if (guessedCode === currentCode) {
+                correctCount++;
+                btn.classList.add('correct-guess');
+                optionBtns.forEach(b => {
+                    if (b !== btn) b.classList.add('grayed-out');
+                });
+            } else {
+                btn.classList.add('wrong-guess');
+                optionBtns.forEach(b => {
+                    if (b.dataset.code === currentCode) {
+                        b.classList.add('missed-correct');
+                    } else if (b !== btn) {
+                        b.classList.add('grayed-out');
+                    }
+                });
+            }
+
+            // Disable buttons after guess
+            optionBtns.forEach(b => b.disabled = true);
+
+            // Show Next button
+            document.getElementById('next-btn').style.visibility = 'visible';
+        }
+
+        function updateCounter() {
+            const counterEl = document.getElementById('counter');
+            if (currentIndex === 0) {
+                counterEl.textContent = `0 / ${countryCodes.length}`;
+            } else {
+                const pct = Math.round((correctCount / currentIndex) * 100);
+                counterEl.textContent = `${currentIndex} / ${countryCodes.length}, correct: ${pct}%`;
+            }
+        }
+
+        function showEndScreen() {
+            document.getElementById('app').style.display = 'none';
+            const endScreen = document.getElementById('end-screen');
+            endScreen.style.display = 'flex';
+
+            const pct = Math.round((correctCount / countryCodes.length) * 100);
+            document.getElementById('final-score').innerText = `You got ${correctCount} out of ${countryCodes.length} correct (${pct}%).`;
+        }
+
+        // Dynamically scales down font sizes to ensure text fits exactly onto one line
+        function adjustAllFonts() {
+            const optionBtns = document.querySelectorAll('.option-btn');
+            optionBtns.forEach(btn => {
+                btn.style.fontSize = '26px'; // Starting Max Font Size
+                let size = 26;
+                // Reduce font size until scrollWidth matches clientWidth (no overflow)
+                while (btn.scrollWidth > btn.clientWidth && size > 10) {
+                    size--;
+                    btn.style.fontSize = size + 'px';
+                }
+            });
+        }
+
+        // Utility array shuffler (Fisher-Yates)
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // Event Listeners
+        document.querySelectorAll('.option-btn').forEach(btn => {
+            btn.addEventListener('click', handleGuess);
+        });
+
+        document.getElementById('next-btn').addEventListener('click', () => {
+            currentIndex++;
+            loadQuestion();
+        });
+
+        // Recalculate font sizes if window/screen is rotated or resized
+        window.addEventListener('resize', adjustAllFonts);
+
+        // Start App
+        init();
+    </script>
+</body>
+</html>
