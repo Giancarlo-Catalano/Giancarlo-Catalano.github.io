@@ -27,7 +27,7 @@
 
         /* --- Top Half --- */
         #top-half {
-            height: 50vh;
+            height: 45vh;
             display: flex;
             flex-direction: column;
             box-sizing: border-box;
@@ -193,7 +193,7 @@
 
             // Set Flag image (filenames are lower-case)
             const img = document.getElementById('flag-image');
-            img.src = `data/svg/${currentCode.toLowerCase()}.svg`;
+            img.src = `data_png/pngs/${currentCode.toLowerCase()}.svg.png`;
 
             // Prepare exactly 4 options (1 correct + 3 random)
             let options = [currentCode];
