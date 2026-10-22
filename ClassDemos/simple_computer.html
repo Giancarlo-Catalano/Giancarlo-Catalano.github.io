@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimal 8-Bit Simulator</title>
+    <style>
+        body {
+            background-color: black;
+            color: #00ff00;
+            font-family: monospace;
+            margin: 20px;
+            font-size: 14px;
+        }
+        h1, h2 { margin: 0 0 10px 0; font-size: 16px; border-bottom: 1px solid #00ff00; display: inline-block;}
+        table { border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #00ff00; padding: 4px 8px; text-align: left; }
+        input, textarea, button {
+            background-color: black;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            font-family: monospace;
+            padding: 4px;
+        }
+        button { cursor: pointer; }
+        button:hover { background-color: #00ff00; color: black; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .container { display: flex; gap: 40px; flex-wrap: wrap; }
+        .column { min-width: 250px; }
+
+        .active-row { background-color: #005500; }
+
+        /* Custom Modal for Alert/Prompt */
+        #modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 99;
+        }
+        #modal-box {
+            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: black; border: 2px solid #00ff00; padding: 20px; z-index: 100;
+            min-width: 300px; text-align: center;
+        }
+        #modal-box input { width: 80%; margin-top: 10px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Controls & Registers -->
+        <div class="column">
+            <h2>CPU State</h2>
+            <p>
+                <label>Next instruction row (PC):</label>
+                <input type="number" id="pc-input" min="0" max="19" value="0" style="width: 50px;">
+            </p>
+
+            <table>
+                <tr><th>Reg</th><th>Bin</th><th>Dec</th></tr>
+                <tr><td>A (00)</td><td id="reg-A-bin">00000000</td><td id="reg-A-dec">0</td></tr>
+                <tr><td>B (01)</td><td id="reg-B-bin">00000000</td><td id="reg-B-dec">0</td></tr>
+                <tr><td>C (10)</td><td id="reg-C-bin">00000000</td><td id="reg-C-dec">0</td></tr>
+                <tr><td>D (11)</td><td id="reg-D-bin">00000000</td><td id="reg-D-dec">0</td></tr>
+            </table>
+
+            <h2>Controls</h2>
+            <div style="margin-bottom: 20px;">
+                <button id="btn-step">Step</button>
+                <button id="btn-run">Run</button>
+                <button id="btn-stop" disabled>Stop</button>
+                <button id="btn-reset">Reset</button>
+            </div>
+
+            <h2>Load Memory</h2>
+            <textarea id="bulk-memory" rows="6" cols="25" placeholder="Paste 8-bit instructions here..."></textarea><br>
+            <button id="btn-load" style="margin-top: 5px;">Load into Memory</button>
+        </div>
+
+        <!-- Memory -->
+        <div class="column">
+            <h2>Memory (20 Bytes)</h2>
+            <table>
+                <thead>
+                    <tr><th>Row</th><th>Binary</th></tr>
+                </thead>
+                <tbody id="memory-body">
+                    <!-- Generated via JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Custom Alert/Prompt Modal -->
+    <div id="modal-overlay"></div>
+    <div id="modal-box">
+        <div id="modal-msg"></div>
+        <input type="text" id="modal-input">
+        <div>
+            <button id="modal-btn-ok">OK</button>
+        </div>
+    </div>
+
+    <script>
+        // --- State ---
+        let registers = [0, 0, 0, 0]; // A, B, C, D
+        let memory = Array(20).fill("00000000");
+        let isRunning = false;
+        let halted = false;
+
+        // --- DOM Elements ---
+        const memBody = document.getElementById('memory-body');
+        const uiPC = document.getElementById('pc-input');
+        const uiRegs = [
+            { bin: document.getElementById('reg-A-bin'), dec: document.getElementById('reg-A-dec') },
+            { bin: document.getElementById('reg-B-bin'), dec: document.getElementById('reg-B-dec') },
+            { bin: document.getElementById('reg-C-bin'), dec: document.getElementById('reg-C-dec') },
+            { bin: document.getElementById('reg-D-bin'), dec: document.getElementById('reg-D-dec') }
+        ];
+
+        const btnStep = document.getElementById('btn-step');
+        const btnRun = document.getElementById('btn-run');
+        const btnStop = document.getElementById('btn-stop');
+        const btnReset = document.getElementById('btn-reset');
+        const btnLoad = document.getElementById('btn-load');
+        const bulkMem = document.getElementById('bulk-memory');
+
+        // Modal elements
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalBox = document.getElementById('modal-box');
+        const modalMsg = document.getElementById('modal-msg');
+        const modalInput = document.getElementById('modal-input');
+        const modalBtnOk = document.getElementById('modal-btn-ok');
+
+        // --- Utils ---
+        function toBin8(num) {
+            return (num & 255).toString(2).padStart(8, '0');
+        }
+
+        // Custom Async Dialogs (replacing window.alert / window.prompt)
+        function showModal(msg, isPrompt) {
+            return new Promise(resolve => {
+                modalMsg.innerText = msg;
+                modalInput.style.display = isPrompt ? 'inline-block' : 'none';
+                modalInput.value = '';
+                modalOverlay.style.display = 'block';
+                modalBox.style.display = 'block';
+
+                if (isPrompt) modalInput.focus();
+
+                modalBtnOk.onclick = () => {
+                    modalOverlay.style.display = 'none';
+                    modalBox.style.display = 'none';
+                    resolve(isPrompt ? modalInput.value : null);
+                };
+            });
+        }
+
+        async function customAlert(msg) {
+            await showModal(msg, false);
+        }
+
+        async function customPrompt(msg) {
+            return await showModal(msg, true);
+        }
+
+        // --- Initialize & Render ---
+        function initMemoryUI() {
+            memBody.innerHTML = '';
+            for (let i = 0; i < 20; i++) {
+                const tr = document.createElement('tr');
+                tr.id = `mem-row-${i}`;
+
+                const tdIndex = document.createElement('td');
+                tdIndex.innerText = i;
+
+                const tdVal = document.createElement('td');
+                const input = document.createElement('input');
+                input.type = "text";
+                input.maxLength = 8;
+                input.value = memory[i];
+                input.style.border = "none";
+                input.style.width = "80px";
+                input.onchange = (e) => {
+                    let val = e.target.value.replace(/[^01]/g, '').padEnd(8, '0').substring(0, 8);
+                    e.target.value = val;
+                    memory[i] = val;
+                };
+
+                tdVal.appendChild(input);
+                tr.appendChild(tdIndex);
+                tr.appendChild(tdVal);
+                memBody.appendChild(tr);
+            }
+        }
+
+        function renderState() {
+            let currentPC = parseInt(uiPC.value);
+            if (isNaN(currentPC)) currentPC = 0;
+
+            // Highlight active memory row
+            for (let i = 0; i < 20; i++) {
+                const row = document.getElementById(`mem-row-${i}`);
+                if (i === currentPC && !halted) {
+                    row.classList.add('active-row');
+                } else {
+                    row.classList.remove('active-row');
+                }
+
+                // Sync memory inputs
+                const input = row.querySelector('input');
+                if (document.activeElement !== input) {
+                    input.value = memory[i];
+                }
+            }
+
+            // Update Registers
+            for (let i = 0; i < 4; i++) {
+                uiRegs[i].bin.innerText = toBin8(registers[i]);
+                uiRegs[i].dec.innerText = registers[i];
+            }
+        }
+
+        async function haltMachine(msg) {
+            isRunning = false;
+            halted = true;
+            btnStep.disabled = true;
+            btnRun.disabled = true;
+            btnStop.disabled = true;
+            renderState();
+            await customAlert("HALTED: " + msg);
+        }
+
+        // --- CPU Logic ---
+        async function executeStep() {
+            if (halted) return;
+
+            let pc = parseInt(uiPC.value);
+            if (isNaN(pc) || pc < 0 || pc >= 20) {
+                await haltMachine("PC out of bounds!");
+                return;
+            }
+
+            const instruction = memory[pc];
+            if (instruction.length !== 8) {
+                await haltMachine("Invalid instruction length at PC " + pc);
+                return;
+            }
+
+            const opcode = instruction.substring(0, 4);
+            let nextPC = pc + 1;
+            const getReg = (bits) => parseInt(bits, 2);
+
+            try {
+                switch (opcode) {
+                    case "0000": // Math A,B -> C
+                        const op = instruction.substring(4, 6);
+                        let a = registers[0], b = registers[1], res = 0;
+                        if (op === "00") res = a + b;
+                        else if (op === "01") res = a - b;
+                        else if (op === "10") res = a * b;
+                        else if (op === "11") {
+                            if (b === 0) {
+                                await haltMachine("Division by Zero!");
+                                return;
+                            }
+                            res = Math.floor(a / b);
+                        }
+                        registers[2] = res & 255;
+                        break;
+
+                    case "0001": // Compare r1, r2
+                        const cmpR1 = getReg(instruction.substring(4, 6));
+                        const cmpR2 = getReg(instruction.substring(6, 8));
+                        registers[0] = (registers[cmpR1] === registers[cmpR2]) ? 1 : 0;
+                        break;
+
+                    case "0010": // Copy src to dest
+                        const cpSrc = getReg(instruction.substring(4, 6));
+                        const cpDst = getReg(instruction.substring(6, 8));
+                        registers[cpDst] = registers[cpSrc];
+                        break;
+
+                    case "0011": // Set A to imm
+                        const imm = parseInt(instruction.substring(4, 8), 2);
+                        registers[0] = imm & 255;
+                        break;
+
+                    case "0100": // Jump to A
+                        nextPC = registers[0];
+                        break;
+
+                    case "0101": // Jump to B if A == 0
+                        if (registers[0] === 0) {
+                            nextPC = registers[1];
+                        }
+                        break;
+
+                    case "0110": // Read Mem[A] -> dest
+                        const rdDst = getReg(instruction.substring(4, 6));
+                        const rdAddr = registers[0];
+                        if (rdAddr >= 0 && rdAddr < 20) {
+                            registers[rdDst] = parseInt(memory[rdAddr], 2) || 0;
+                        } else {
+                            await haltMachine("Memory read out of bounds at " + rdAddr);
+                            return;
+                        }
+                        break;
+
+                    case "0111": // Write src -> Mem[A]
+                        const wrSrc = getReg(instruction.substring(4, 6));
+                        const wrAddr = registers[0];
+                        if (wrAddr >= 0 && wrAddr < 20) {
+                            memory[wrAddr] = toBin8(registers[wrSrc]);
+                        } else {
+                            await haltMachine("Memory write out of bounds at " + wrAddr);
+                            return;
+                        }
+                        break;
+
+                    case "1000": // Input -> dest
+                        const inDst = getReg(instruction.substring(4, 6));
+                        let val = await customPrompt("Input required (0-255):");
+                        let parsedVal = parseInt(val, 10);
+                        if (isNaN(parsedVal)) parsedVal = 0;
+                        registers[inDst] = parsedVal & 255;
+                        break;
+
+                    case "1001": // Output src
+                        const outSrc = getReg(instruction.substring(4, 6));
+                        await customAlert("Output: " + registers[outSrc]);
+                        break;
+
+                    case "1111": // Halt
+                        await haltMachine("Execution finished normally (1111).");
+                        return;
+
+                    default:
+                        await haltMachine("Unknown Opcode " + opcode);
+                        return;
+                }
+            } catch(e) {
+                await haltMachine("Error: " + e.message);
+                return;
+            }
+
+            uiPC.value = nextPC;
+
+            if (nextPC >= 20) {
+                await haltMachine("PC passed end of memory.");
+            } else {
+                renderState();
+            }
+        }
+
+        // --- Event Listeners ---
+        btnStep.addEventListener('click', async () => {
+            if(!halted) await executeStep();
+        });
+
+        btnRun.addEventListener('click', async () => {
+            if (halted || isRunning) return;
+            isRunning = true;
+            btnStep.disabled = true;
+            btnRun.disabled = true;
+            btnStop.disabled = false;
+
+            while (isRunning && !halted) {
+                await executeStep();
+                if (isRunning) await new Promise(r => setTimeout(r, 200)); // Delay between steps
+            }
+        });
+
+        btnStop.addEventListener('click', () => {
+            isRunning = false;
+            btnStep.disabled = false;
+            btnRun.disabled = false;
+            btnStop.disabled = true;
+            renderState();
+        });
+
+        btnReset.addEventListener('click', () => {
+            isRunning = false;
+            halted = false;
+            registers = [0, 0, 0, 0];
+            uiPC.value = 0;
+
+            btnStep.disabled = false;
+            btnRun.disabled = false;
+            btnStop.disabled = true;
+            renderState();
+        });
+
+        uiPC.addEventListener('change', renderState);
+        uiPC.addEventListener('keyup', renderState);
+
+        btnLoad.addEventListener('click', () => {
+            const raw = bulkMem.value.split(/\s+/).filter(s => s.trim().length > 0);
+            for (let i = 0; i < 20; i++) {
+                if (i < raw.length) {
+                    let val = raw[i].replace(/[^01]/g, '').padEnd(8, '0').substring(0, 8);
+                    memory[i] = val;
+                } else {
+                    memory[i] = "00000000";
+                }
+            }
+            renderState();
+        });
+
+        // Start
+        initMemoryUI();
+        renderState();
+    </script>
+</body>
+</html>

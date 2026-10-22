@@ -1,0 +1,123 @@
+
+Average of 2 grades
+10000000  (Read input into A)
+00100011  (Copy A to D - save first grade)
+10000100  (Read input into B - second grade)
+00101100  (Copy D to A - restore first grade to A)
+00000000  (Add A and B, result in C)
+00110010  (Set A to 2)
+00100001  (Copy A to B - B is now 2)
+00101000  (Copy C to A - A is now the sum)
+00001100  (Divide A by B, result in C)
+10011000  (Print C)
+11110000  (Halt)
+
+
+(without instructions)
+10000000
+00100011
+10000100
+00101100
+00000000
+00110010
+00100001
+00101000
+00001100
+10011000
+11110000
+
+
+
+Broken program:
+Reads up to 3 numbers. If the third number is 0, it  continues execution
+(falling through to whatever program follows it in memory).
+If the third number is NOT 0, it halts early.
+
+10001100  (Read input into D - 1st number)
+10001000  (Read input into C - 2nd number)
+10000000  (Read input into A - 3rd number)
+00110000  (Set A to 0 ... wait, we need to compare A to 0. Let's load 0 into B)
+00100001  (Wait, A was overwritten. Let's do this:)
+
+Without instructions
+10001100
+10001000
+10000000
+00110000
+00100001
+
+
+Print a secret number
+00111111  (Set A to 15)
+00100001  (Copy A to B)
+00110100  (Set A to 4)
+00001000  (Multiply A * B, result in C -> 60)
+00101000  (Copy C to A)
+00100001  (Copy A to B - B is now 60)
+00110111  (Set A to 7)
+00000000  (Add A + B, result in C -> 67)
+10011000  (Print C)
+11110000  (Halt)
+
+
+(without comments)
+00111111
+00100001
+00110100
+00001000
+00101000
+00100001
+00110111
+00000000
+10011000
+11110000
+
+
+
+Weighted average
+10000000  (Read input Grade 1 into A)
+00100011  (Copy A to D - save Grade 1 temporarily)
+00110100  (Set A to 4)
+00100001  (Copy A to B - B is now 4)
+00101100  (Copy D to A - A is now Grade 1)
+00001000  (Multiply A * B, result in C. C = Grade1 * 4)
+
+00110101  (Set A to 5)
+00100001  (Copy A to B - B is now 5)
+00101000  (Copy C to A - A is now Grade1 * 4)
+00001100  (Divide A / B, result in C. C = [Grade1 * 4] / 5)
+
+00101011  (Copy C to D. D now holds the 80% weighted first grade)
+
+10000000  (Read input Grade 2 into A. Note: B is STILL 5!)
+00001100  (Divide A / B, result in C. C = Grade2 / 5)
+
+00101000  (Copy C to A - A is now the 20% weighted second grade)
+00101101  (Copy D to B - B is now the 80% weighted first grade)
+00000000  (Add A and B, result in C)
+
+10011000  (Print C)
+11110000  (Halt)
+
+(without comments)
+10000000
+00100011
+00110100
+00100001
+00101100
+00001000
+00110101
+00100001
+00101000
+00001100
+00101011
+10000000
+00001100
+00101000
+00101101
+00000000
+10011000
+11110000
+
+
+
