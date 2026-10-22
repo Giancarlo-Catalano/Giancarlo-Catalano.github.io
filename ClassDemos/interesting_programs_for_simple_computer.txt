@@ -47,29 +47,23 @@ Without instructions
 00100001
 
 
-Print a secret number
+Print a secret code
 00111111  (Set A to 15)
-00100001  (Copy A to B)
-00110100  (Set A to 4)
-00001000  (Multiply A * B, result in C -> 60)
-00101000  (Copy C to A)
-00100001  (Copy A to B - B is now 60)
-00110111  (Set A to 7)
-00000000  (Add A + B, result in C -> 67)
-10011000  (Print C)
+10010000  (Print A)
+00111000  (Set A to 8)
+10010000  (Print A)
+00110110  (Set A to 6)
+10010000  (Print A)
 11110000  (Halt)
 
 
 (without comments)
 00111111
-00100001
-00110100
-00001000
-00101000
-00100001
-00110111
-00000000
-10011000
+10010000
+00111000
+10010000
+00110110
+10010000
 11110000
 
 
@@ -121,3 +115,77 @@ Weighted average
 
 
 
+
+Heartbleed:
+divides (input 1) by (input 2), and prints it. If input 2 is zero,
+it prints the rest of memory.
+
+10001100  (0: Read input into D - 1st Number)
+10001000  (1: Read input into C - 2nd Number)
+00111001  (2: Set A to 9 - Row of Normal Path)
+00100001  (3: Copy A to B - B is now 9 for our jump target)
+00110000  (4: Set A to 0)
+00011000  (5: Compare C with A [0]. If C is 0, A becomes 1. If C != 0, A becomes 0)
+01010000  (6: Conditional Jump: If A is 0, jump to B [Row 9]. JUMPS TO NORMAL IF SAFE)
+00111110  (7: Set A to 14 - Row of Bug Path)
+01000000  (8: Jump - Unconditional jump to row 14)
+00101100  (9: Copy D to A - Bring 1st number back)
+00101001  (10: Copy C to B - Bring 2nd number back)
+00001100  (11: Divide A by B, result in C)
+10011000  (12: Print C)
+11110000  (13: Halt)
+00111110  (14: Set A to 14 - We will leak memory starting right here!)
+00100011  (15: Copy A to D - D is now our memory pointer)
+00110001  (16: Set A to 1 - We need a 1 to increment our pointer)
+00100001  (17: Copy A to B - B is now 1)
+00101100  (18: Copy D to A - A is now our pointer)
+01101000  (19: Read memory at row A into C)
+10011000  (20: Print C - The leaked data!)
+00000000  (21: Add A + B, result in C - Increments our pointer by 1)
+00101011  (22: Copy C to D - Update our pointer in D)
+00111111  (23: Set A to 15 - Max possible immediate value)
+00100001  (24: Copy A to B - B is now 15)
+00110001  (25: Set A to 1)
+00000000  (26: Add A + B, result in C - C is now 16)
+00101000  (27: Copy C to A - A is now 16)
+01000000  (28: Jump to A - Jumps back to row 16 to continue the loop!)
+
+(without comments)
+10001100
+10001000
+00111001
+00100001
+00110000
+00011000
+01010000
+00111110
+01000000
+00101100
+00101001
+00001100
+10011000
+11110000
+00111110
+00100011
+00110001
+00100001
+00101100
+01101000
+10011000
+00000000
+00101011
+00111111
+00100001
+00110001
+00000000
+00101000
+01000000
+
+
+
+Secret information
+My secret password
+01000111
+01101001
+01100001
+01101110
