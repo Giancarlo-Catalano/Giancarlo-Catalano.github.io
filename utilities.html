@@ -103,8 +103,6 @@
 
         <p>This page contain links to many little tools I created over time to help myself, my students and my co-workers.
         </p>
-        <p> Many of these were generated using AI, I'll be honest. But! That's because I don't have time to learn javascript...
-        If it was another language, I would be more than happy...</p>
 
 
         <!-- The JavaScript will inject the tool rectangles here -->
@@ -112,8 +110,6 @@
     </div>
 
     <script>
-        // --- 1. The Data ---
-        // Easy to edit JSON list. Descriptions are left as placeholders for you.
         const toolsData = [
             {
                 "name": "Student Marathon",
@@ -182,25 +178,18 @@
             }
         ];
 
-        // --- 2. Helper Functions ---
-
-        // Generates a random pastel color using HSL (Hue, Saturation, Lightness)
-        // Lightness is kept high (80%) and Saturation medium (70%) to ensure it looks pastel
         function getRandomPastelColor() {
             const hue = Math.floor(Math.random() * 360);
             return `hsl(${hue}, 70%, 80%)`;
         }
 
-        // Generates 4 random border radii between 5px and 35px for an organic, slightly asymmetrical look
         function getRandomCorners() {
             const randomPx = () => Math.floor(Math.random() * 30 + 5) + 'px';
             return `${randomPx()} ${randomPx()} ${randomPx()} ${randomPx()}`;
         }
 
-        // --- 3. DOM Manipulation ---
         const container = document.getElementById('tools-container');
 
-        // Loop through the JSON array and build the HTML for each tool
         toolsData.forEach(tool => {
             // Create the anchor (link) element that acts as the rectangle
             const card = document.createElement('a');
