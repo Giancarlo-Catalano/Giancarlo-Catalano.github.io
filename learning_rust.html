@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+  <meta charset="UTF-8">
+    <link rel="icon" type="image/png" sizes="16x16"   href="favicon/g_16.png">
+    <link rel="icon" type="image/png" sizes="32x32"   href="favicon/g_32.png">
+    <link rel="icon" type="image/png" sizes="64x64"   href="favicon/g_64.png">
+    <link rel="icon" type="image/png" sizes="128x128" href="favicon/g_128.png">
+    <title>Learning Rust</title>
+</head>
+<style>
+  .tt {
+    font-family: monospace;
+  }
+</style>
+<body>
+
+This is my own personal guide to learning Rust.
+The guides I find on the Internet are still too wordy.
+<ol>
+  <li> The default behaviour of variable assignment is to <strong> move </strong> (i.e. copied and the original variable is unusable) the value being assigned
+      if it is not a primitive type.
+    <ul>
+      <li> <span class="tt"> let a = vec![1, 2, 3]; let b = a;</span> means that the vector has been moved to <span class="tt">b</span>
+      and that <span class="tt">a</span> is not valid anymore.</li>
+      <li> <span class="tt"> fn do_thing(x: notPrimitive) {...}; let a = notPrimitive{}; do_thing(a);</span> means
+        that the value in <span class="tt">a</span> has been moved to <span class="tt">x</span> within <span class="tt">do_thing.</span></li>
+      <li> This includes for loops! <span class="tt"> for thing in things {...}</span> will move <span class="tt">things</span>
+        into something else, and then you can't use it anymore!! You need to use .iter()</li>
+    </ul></li>
+
+
+  <li> String and &str. String can be mutable and heap allocated. &str is immutable and a pain to work with.
+    <ul>
+      <li> String cannot be moved implicitly, you need to call .clone()</li>
+      <li> String can be used as string builder, even though there is a string_builder</li>
+    </ul></li>
+
+
+  <li> If you don't put the semicolon on the <em>last</em> part of a function, it is assumed that it is returned. </li>
+
+  <li> The "normal way" of printing things is via println!("{}", thing),
+      but that only works if thing implements Display.
+      <ul>
+        <li> If you want to print without faff, just use {:?}, BUT it needs to implement Debug!!
+          <ul>
+            <li>
+              <span class="tt">
+                <pre>
+      #[derive(Debug, Clone, Copy)]
+      struct ContinuousVariable {
+          lower_bound: f64,
+          upper_bound: f64
+      }
+                </pre>
+              </span>
+            </li>
+          </ul></li>
+      </ul>
+  </li>
+
+  <li> To make something properly printable, you need to implement the Display trait (interface).
+      <span class="tt">
+        <pre>
+      <br>
+      impl fmt::Display for ContinuousVariable {<br>
+          fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {<br>
+              write!(f, "[{}, {}]", self.lower_bound, self.upper_bound)<br>
+          }<br>
+      }<br>
+        </pre>
+      </span>
+  </li>
+</ol>
+
+</body>
+</html>
